@@ -41,6 +41,11 @@ const userSchema = new Schema({
     type: String,
     required: [true, "Password is required"],
   },
+  companyId: {
+    type: Schema.Types.ObjectId,
+    ref: "Company",
+    default: null,
+  },
   role: {
     type: String,
     enum: AvailableUserRoles,
