@@ -1,6 +1,4 @@
 import { Router } from "express";
-import passport from "passport";
-
 import { UserRolesEnum } from "../constants.js";
 import {
   verifyJWT,
@@ -10,9 +8,12 @@ import { validate } from "../validators/validate.js";
 import {
   companyCreateValidator,
   companyUpdateValidator,
+  createUserValidator,
 } from "../validators/project/company.validators.js";
 import {
+  changeUserRole,
   createCompany,
+  createUser,
   deleteCompany,
   getAllCompanies,
   getCompanyById,
@@ -22,15 +23,15 @@ import { mongoIdPathVariableValidator } from "../validators/common/mongodb.valid
 
 const router = Router();
 
-// Secured routes
+// ✅ CORRECT ORDER: validator → validate → controller
 router
   .route("/")
   .post(
     verifyJWT,
-    validate,
     verifyPermission([UserRolesEnum.SUPERADMIN]),
-    companyCreateValidator(),
-    createCompany
+    companyCreateValidator(),    // 1. Run validation rules
+    validate,                   // 2. Check validation results
+    createCompany               // 3. Run controller if valid
   )
   .get(
     verifyJWT,
@@ -40,22 +41,45 @@ router
 
 router
   .route("/:companyId")
-  .get(verifyJWT, mongoIdPathVariableValidator("companyId"), getCompanyById)
+  .get(
+    verifyJWT, 
+    mongoIdPathVariableValidator("companyId"), 
+    validate,           // Add validate middleware
+    getCompanyById
+  )
   .patch(
     verifyJWT,
-    companyUpdateValidator(),
-    validate,
-    mongoIdPathVariableValidator("companyId"),
     verifyPermission([UserRolesEnum.SUPERADMIN]),
-    updateCompany
+    mongoIdPathVariableValidator("companyId"),
+    companyUpdateValidator(),   // 1. Validation rules
+    validate,                  // 2. Check results
+    updateCompany              // 3. Controller
   )
   .delete(
     verifyJWT,
-    mongoIdPathVariableValidator("companyId"),
     verifyPermission([UserRolesEnum.SUPERADMIN]),
+    mongoIdPathVariableValidator("companyId"),
+    validate,           // Add validate middleware
     deleteCompany
   );
 
+router
+  .route("/create-user")
+  .post(
+    verifyJWT,
+    verifyPermission([UserRolesEnum.ADMIN]), // Add permission check
+    createUserValidator(),      // 1. Validation rules
+    validate,                  // 2. Check validation results
+    createUser                 // 3. Controller
+  );
 
 
+  router.patch(
+    "/:userId/change-role",
+    verifyJWT,
+    verifyPermission([UserRolesEnum.ADMIN]), 
+    mongoIdPathVariableValidator("userId"),
+    validate,
+    changeUserRole
+  );
 export default router;

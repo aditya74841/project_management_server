@@ -45,6 +45,9 @@ router.route("/login").post(userLoginValidator(), validate, loginUser);
 router.route("/refresh-token").post(refreshAccessToken);
 router.route("/verify-email/:verificationToken").get(verifyEmail);
 
+
+
+
 //TODO: NEED TO WORK ON THIS FORGET PASSWORD NOT WORK
 router
   .route("/forgot-password")

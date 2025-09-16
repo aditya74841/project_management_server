@@ -17,7 +17,11 @@ const companySchema = new Schema(
       enum: ["active", "inactive", "suspended"],
       default: "active",
     },
-    domain: { type: String, trim: true }, // e.g. for "company.com" emails
+    domain: {
+      type: String,
+      trim: true,
+      unique: [true, "Domain must be unique"],
+    }, // e.g. for "company.com" emails
   },
   { timestamps: true }
 );

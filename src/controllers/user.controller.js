@@ -117,14 +117,23 @@ function generateRandomPassword() {
 }
 
 const loginUser = asyncHandler(async (req, res) => {
-  const { phoneNumber, email, password } = req.body;
-  if (!phoneNumber && !email) {
+  const { email, password } = req.body;
+
+  // console.log("THe email and password", email, password);
+
+  if (!email) {
     throw new ApiError(400, "Username or email is required");
   }
 
   const user = await User.findOne({
-    $or: [{ phoneNumber }, { email }],
+    email,
   });
+
+  // const user = await User.findOne({
+  //   $or: [{ phoneNumber }, { email }],
+  // });
+
+  // console.log("The user is ", user);
 
   if (!user) {
     throw new ApiError(404, "User does not exists");
