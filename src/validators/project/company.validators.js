@@ -99,17 +99,6 @@ const createUserValidator = () => {
       .isIn(AllowedUserRoles)
       .withMessage("Role must be either ADMIN or USER"),
 
-    // CompanyId validation with strict MongoDB ObjectId check
-    body("companyId")
-      .notEmpty()
-      .withMessage("Company ID is required")
-      .custom((value) => {
-        if (!isValidObjectId(value)) {
-          throw new Error("Invalid Company ID format. Must be a valid MongoDB ObjectId");
-        }
-        return true;
-      })
-      .withMessage("Company ID must be a valid MongoDB ObjectId"),
   ];
 };
 

@@ -8,27 +8,22 @@ import mongoose from "mongoose";
 
 const isValidObjectId = (id) => {
   if (!id) return false;
-  
+
   // Check if it's a valid ObjectId format
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return false;
   }
-  
+
   // Additional check: ensure string representation matches original
   // This prevents cases like "123456789012" being considered valid
   return String(new mongoose.Types.ObjectId(id)) === String(id);
 };
 
-
 const createCompany = asyncHandler(async (req, res) => {
   const { name, email, domain = null } = req.body;
 
-
-  if(!email)
-  {
-
+  if (!email) {
   }
-
 
   // Check if company already exists
   const existedCompany = await Company.findOne({ email });
@@ -150,113 +145,97 @@ const deleteCompany = asyncHandler(async (req, res) => {
 const ALLOWED_ROLES = [UserRolesEnum.ADMIN, UserRolesEnum.USER];
 
 const createUser = asyncHandler(async (req, res) => {
-  const { name, email, password, role, companyId } = req.body;
+  const { name = "", email = "", password = "", role } = req.body;
 
-  // Input validation
-  if (!name?.trim()) {
-    throw new ApiError(400, "Name is required", []);
-  }
+  /* ----------------------------------------------------
+     1.  Pull companyId from authenticated user
+  ---------------------------------------------------- */
+  const companyId = req.user?.companyId; // <— TRUSTED SOURCE
 
-  if (!email?.trim()) {
-    throw new ApiError(400, "Email is required", []);
-  }
+  /* ----------------------------------------------------
+     2.  Field-level validation
+  ---------------------------------------------------- */
+  if (!name.trim()) throw new ApiError(400, "Name is required");
+  if (!email.trim()) throw new ApiError(400, "Email is required");
+  if (!password.trim()) throw new ApiError(400, "Password is required");
+  if (!role) throw new ApiError(400, "Role is required");
+  if (!companyId) throw new ApiError(403, "Company context missing");
 
-  if (!password?.trim()) {
-    throw new ApiError(400, "Password is required", []);
-  }
+  // Only USER or ADMIN can be created by this route
+  if (!ALLOWED_ROLES.includes(role))
+    throw new ApiError(400, "Invalid role. Use ADMIN or USER only");
 
-  if (!role) {
-    throw new ApiError(400, "Role is required", []);
-  }
-
-  if (!companyId) {
-    throw new ApiError(400, "Company ID is required", []);
-  }
-
-  // MongoDB ObjectId validation for companyId
-  if (!isValidObjectId(companyId)) {
-    throw new ApiError(400, "Invalid Company ID format. Must be a valid MongoDB ObjectId", []);
-  }
-
-  // Role validation - Only ADMIN or USER allowed
-  if (!ALLOWED_ROLES.includes(role)) {
-    throw new ApiError(400, "Invalid role. Role must be ADMIN or USER only", []);
-  }
-
-  // Check if user already exists
-  const existedUser = await User.findOne({ email: email.toLowerCase().trim() });
-  if (existedUser) {
-    throw new ApiError(409, "User with this email already exists", []);
-  }
-
-  // Validate company existence
+  /* ----------------------------------------------------
+     3.  Ensure company exists & is active
+  ---------------------------------------------------- */
   const company = await Company.findById(companyId);
-  if (!company) {
-    throw new ApiError(404, "Company not found or invalid", []);
-  }
+  if (!company) throw new ApiError(404, "Company not found");
+  if (company.status === "suspended")
+    throw new ApiError(403, "Cannot create users for suspended companies");
 
-  // Check if company is active (optional business logic)
-  if (company.status === 'suspended') {
-    throw new ApiError(403, "Cannot create users for suspended companies", []);
-  }
+  /* ----------------------------------------------------
+     4.  Uniqueness checks
+  ---------------------------------------------------- */
+  const lowerEmail = email.toLowerCase().trim();
+  if (await User.findOne({ email: lowerEmail }))
+    throw new ApiError(409, "User with this email already exists");
 
-  // Create username from email
-  const username = email.split('@')[0].toLowerCase();
+  const baseUsername = lowerEmail.split("@")[0];
+  const usernameTaken = await User.findOne({ username: baseUsername });
+  const finalUsername = usernameTaken
+    ? `${baseUsername}_${Date.now()}`
+    : baseUsername;
 
-  // Check if username already exists (optional uniqueness check)
-  const existingUsername = await User.findOne({ username });
-  let finalUsername = username;
-  if (existingUsername) {
-    finalUsername = `${username}_${Date.now()}`;
-  }
-
-  // Create user with validated data
+  /* ----------------------------------------------------
+     5.  Create user
+  ---------------------------------------------------- */
   const user = await User.create({
     name: name.trim(),
-    email: email.toLowerCase().trim(),
-    password, // Will be hashed by the model's pre-save middleware
+    email: lowerEmail,
+    password, // hashed in pre-save middleware
     username: finalUsername,
+    role,
+    companyId: new mongoose.Types.ObjectId(companyId),
     isEmailVerified: false,
-    role, // Already validated above
-    companyId: new mongoose.Types.ObjectId(companyId), // Convert to ObjectId
   });
 
-  if (!user) {
-    throw new ApiError(500, "Something went wrong while creating the user", []);
-  }
+  if (!user) throw new ApiError(500, "Failed to create user");
 
-  // Add user to company's users array
+  /* ----------------------------------------------------
+     6.  Push to company.users array (if not already)
+  ---------------------------------------------------- */
   if (!company.users.includes(user._id)) {
     company.users.push(user._id);
     await company.save();
   }
 
-  // Get created user without sensitive fields
-  const createdUser = await User.findById(user._id).select(
+  /* ----------------------------------------------------
+     7.  Response
+  ---------------------------------------------------- */
+  const safeUser = await User.findById(user._id).select(
     "-password -refreshToken -emailVerificationToken -emailVerificationExpiry"
   );
 
   return res.status(201).json(
     new ApiResponse(
-      201, 
-      { 
-        user: createdUser,
+      201,
+      {
+        user: safeUser,
         company: {
           id: company._id,
           name: company.name,
-          totalUsers: company.users.length
-        }
-      }, 
+          totalUsers: company.users.length,
+        },
+      },
       "User created successfully"
     )
   );
 });
 
-
 const changeUserRole = asyncHandler(async (req, res) => {
   const { userId } = req.params;
   const { newRole } = req.body;
-console.log("THE user Id",userId)
+  // console.log("THE user Id",userId)
 
   // Input validation
   if (!userId) {
@@ -269,12 +248,20 @@ console.log("THE user Id",userId)
 
   // MongoDB ObjectId validation for userId
   if (!isValidObjectId(userId)) {
-    throw new ApiError(400, "Invalid User ID format. Must be a valid MongoDB ObjectId", []);
+    throw new ApiError(
+      400,
+      "Invalid User ID format. Must be a valid MongoDB ObjectId",
+      []
+    );
   }
 
   // Role validation - Only ADMIN or USER allowed
   if (!ALLOWED_ROLES.includes(newRole)) {
-    throw new ApiError(400, "Invalid role. Role must be ADMIN or USER only", []);
+    throw new ApiError(
+      400,
+      "Invalid role. Role must be ADMIN or USER only",
+      []
+    );
   }
 
   // Find user by ID
@@ -299,23 +286,176 @@ console.log("THE user Id",userId)
 
   // Get updated user without sensitive fields
   const updatedUser = await User.findById(userId)
-    .select("-password -refreshToken -emailVerificationToken -emailVerificationExpiry")
+    .select(
+      "-password -refreshToken -emailVerificationToken -emailVerificationExpiry"
+    )
     .populate("companyId", "name email");
 
   return res.status(200).json(
     new ApiResponse(
-      200, 
-      { 
+      200,
+      {
         user: updatedUser,
-        previousRole: user.role === newRole ? "Unknown" : (newRole === UserRolesEnum.ADMIN ? UserRolesEnum.USER : UserRolesEnum.ADMIN),
-        newRole: newRole
-      }, 
+        previousRole:
+          user.role === newRole
+            ? "Unknown"
+            : newRole === UserRolesEnum.ADMIN
+              ? UserRolesEnum.USER
+              : UserRolesEnum.ADMIN,
+        newRole: newRole,
+      },
       `User role successfully changed to ${newRole}`
     )
   );
 });
 
+const getUsers = asyncHandler(async (req, res) => {
+  const currentUser = req.user;
+  const { companyId: requestedCompanyId } = req.query; // Get companyId from query params
 
+  // Input validation - ensure user exists and has required fields
+  if (!currentUser || !currentUser._id) {
+    throw new ApiError(401, "Invalid user session", []);
+  }
+
+  // Role validation - Allow ADMIN and SUPERADMIN to access company users
+  const allowedRoles = [UserRolesEnum.ADMIN, UserRolesEnum.SUPERADMIN];
+  if (!allowedRoles.includes(currentUser.role)) {
+    throw new ApiError(403, "Access denied. Admin privileges required", []);
+  }
+
+  // Determine which companyId to use
+  let targetCompanyId;
+
+  if (requestedCompanyId) {
+    // If companyId is provided, only SUPERADMIN can use it
+    if (currentUser.role !== UserRolesEnum.SUPERADMIN) {
+      throw new ApiError(
+        403,
+        "Access denied. Only SUPERADMIN can view other companies' users",
+        []
+      );
+    }
+
+    // Validate requested companyId format
+    if (!isValidObjectId(requestedCompanyId)) {
+      throw new ApiError(400, "Invalid company ID format", []);
+    }
+
+    targetCompanyId = requestedCompanyId;
+  } else {
+    // Use current user's company
+    if (!currentUser.companyId) {
+      throw new ApiError(400, "User has no associated company", []);
+    }
+
+    // Validate user's companyId format
+    if (!isValidObjectId(currentUser.companyId)) {
+      throw new ApiError(400, "Invalid user company ID format", []);
+    }
+
+    targetCompanyId = currentUser.companyId;
+  }
+
+  // Find company with users
+  const company = await Company.findById(targetCompanyId)
+    .populate({
+      path: "owner",
+      select: "name email role username isEmailVerified createdAt",
+    })
+    .populate({
+      path: "users",
+      select: "name email role username isEmailVerified createdAt updatedAt",
+      options: { sort: { createdAt: -1 } }, // Sort by newest first
+    });
+
+  if (!company) {
+    throw new ApiError(404, "Company not found", []);
+  }
+
+  // Additional security check for non-SUPERADMIN users
+  if (currentUser.role !== UserRolesEnum.SUPERADMIN) {
+    // Ensure user belongs to the company they're trying to access
+    const userBelongsToCompany =
+      company.users.some(
+        (user) => String(user._id) === String(currentUser._id)
+      ) || String(company.owner?._id) === String(currentUser._id);
+
+    if (!userBelongsToCompany) {
+      throw new ApiError(
+        403,
+        "Access denied. You can only view users from your own company",
+        []
+      );
+    }
+  }
+
+  // Filter sensitive data and add additional info
+  const sanitizedUsers = company.users.map((user) => ({
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    username: user.username,
+    role: user.role,
+    isEmailVerified: user.isEmailVerified,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+    isCurrentUser: String(user._id) === String(currentUser._id),
+  }));
+
+  // Prepare response data
+  const responseData = {
+    company: {
+      id: company._id,
+      name: company.name,
+      email: company.email,
+      status: company.status,
+      domain: company.domain,
+      totalUsers: company.users.length,
+    },
+    owner: company.owner
+      ? {
+          _id: company.owner._id,
+          name: company.owner.name,
+          email: company.owner.email,
+          role: company.owner.role,
+          username: company.owner.username,
+          isEmailVerified: company.owner.isEmailVerified,
+          createdAt: company.owner.createdAt,
+        }
+      : null,
+    users: sanitizedUsers,
+    stats: {
+      totalUsers: sanitizedUsers.length,
+      adminCount: sanitizedUsers.filter((u) => u.role === UserRolesEnum.ADMIN)
+        .length,
+      userCount: sanitizedUsers.filter((u) => u.role === UserRolesEnum.USER)
+        .length,
+      verifiedUsers: sanitizedUsers.filter((u) => u.isEmailVerified).length,
+      unverifiedUsers: sanitizedUsers.filter((u) => !u.isEmailVerified).length,
+    },
+    // Add context info
+    context: {
+      isViewingOwnCompany:
+        String(targetCompanyId) === String(currentUser.companyId),
+      requestedBy: {
+        role: currentUser.role,
+        name: currentUser.name,
+        email: currentUser.email,
+      },
+    },
+  };
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        responseData,
+        `Retrieved ${sanitizedUsers.length} users from ${company.name}${requestedCompanyId ? " (via SUPERADMIN access)" : ""}`
+      )
+    );
+});
 
 export {
   createCompany,
@@ -324,5 +464,6 @@ export {
   updateCompany,
   deleteCompany,
   createUser,
-  changeUserRole
+  changeUserRole,
+  getUsers,
 };
