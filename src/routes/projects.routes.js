@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { UserRolesEnum } from "../constants.js";
-import { verifyJWT, verifyPermission } from "../middlewares/auth.middlewares.js";
+import {
+  verifyJWT,
+  verifyPermission,
+} from "../middlewares/auth.middlewares.js";
 import { validate } from "../validators/validate.js";
 import {
   projectCreateValidator,
@@ -18,8 +21,10 @@ import {
   removeMemberFromProject,
   assignFeatureToProject,
   unassignFeatureFromProject,
+  getProject,
 } from "../controllers/projects.controller.js";
 import { mongoIdPathVariableValidator } from "../validators/common/mongodb.validators.js";
+import { get } from "mongoose";
 
 const router = Router();
 
@@ -32,15 +37,12 @@ router
     projectCreateValidator(),
     validate,
     createProject
-  );
+  )
+  .get(verifyJWT, getProject);
 
 router
   .route("/:projectId")
-  .get(
-    verifyJWT,
-    mongoIdPathVariableValidator("projectId"),
-    getProjectById
-  )
+  .get(verifyJWT, mongoIdPathVariableValidator("projectId"), getProjectById)
   .patch(
     verifyJWT,
     verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN]),

@@ -13,6 +13,7 @@ const projectCreateValidator = () => {
       .withMessage("Description must be a string"),
 
     body("companyId")
+      .optional()
       .notEmpty()
       .withMessage("Company ID is required")
       .isMongoId()
