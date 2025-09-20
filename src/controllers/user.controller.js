@@ -119,8 +119,6 @@ function generateRandomPassword() {
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  // console.log("THe email and password", email, password);
-
   if (!email) {
     throw new ApiError(400, "Username or email is required");
   }
@@ -140,15 +138,9 @@ const loginUser = asyncHandler(async (req, res) => {
   }
 
   if (user.loginType !== UserLoginType.EMAIL_PASSWORD) {
-    // If user is registered with some other method, we will ask him/her to use the same method as registered.
-    // This shows that if user is registered with methods other than email password, he/she will not be able to login with password. Which makes password field redundant for the SSO
     throw new ApiError(
       400,
-      "You have previously registered using " +
-        user.loginType?.toLowerCase() +
-        ". Please use the " +
-        user.loginType?.toLowerCase() +
-        " login option to access your account."
+      `You have previously registered using ${user.loginType.toLowerCase()}. Please use ${user.loginType.toLowerCase()} login.`
     );
   }
 
@@ -165,54 +157,63 @@ const loginUser = asyncHandler(async (req, res) => {
   const loggedInUser = await User.findById(user._id).select(
     "-password -refreshToken -emailVerificationToken -emailVerificationExpiry"
   );
-  const accessTokenExpiry = 60 * 60 * 24 * 7; // 1 hour in seconds
-  const refreshTokenExpiry = 60 * 60 * 24 * 7; // 7 days in seconds
-
-  const optionsAccessToken = {
+  const accessTokenExpiry = 1000 * 60 * 60 * 24 * 7; // 7 days in ms
+  const refreshTokenExpiry = 1000 * 60 * 60 * 24 * 7; // 7 days in ms
+  
+  const cookieOptionsAccess = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     maxAge: accessTokenExpiry,
+    path: "/",
   };
-
-  const optionsRefreshToken = {
+  
+  const cookieOptionsRefresh = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     maxAge: refreshTokenExpiry,
+    path: "/",
   };
   return res
     .status(200)
-    .cookie("accessToken", accessToken, optionsAccessToken) // set the access token in the cookie
-    .cookie("refreshToken", refreshToken, optionsRefreshToken) // set the refresh token in the cookie
+    .cookie("accessToken", accessToken, cookieOptionsAccess)
+    .cookie("refreshToken", refreshToken, cookieOptionsRefresh)
     .json(
       new ApiResponse(
         200,
-        { user: loggedInUser, accessToken }, // send access and refresh token in response if client decides to save them by themselves
+        { user: loggedInUser, accessToken },
         "User logged in successfully"
       )
     );
 });
 
+
+
 const logoutUser = asyncHandler(async (req, res) => {
-  await User.findByIdAndUpdate(
-    req.user._id,
-    {
-      $set: {
-        refreshToken: undefined,
-      },
-    },
-    { new: true }
-  );
-  const options = {
+  // await User.findByIdAndUpdate(
+  //   req.user._id,
+  //   {
+  //     $set: {
+  //       refreshToken: undefined,
+  //     },
+  //   },
+  //   { new: true }
+  // );
+
+  await User.findByIdAndUpdate(req.user._id, { $set: { refreshToken: undefined } });
+
+  const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    path: "/", 
   };
 
   return res
     .status(200)
-    .clearCookie("accessToken", options)
-    .clearCookie("refreshToken", options)
+    .clearCookie("accessToken", cookieOptions)
+    .clearCookie("refreshToken", cookieOptions)
     .json(new ApiResponse(200, {}, "User logged out"));
 });
 
