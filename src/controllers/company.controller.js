@@ -5,6 +5,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import mongoose from "mongoose";
+const ALLOWED_ROLES = [UserRolesEnum.ADMIN, UserRolesEnum.USER];
 
 const isValidObjectId = (id) => {
   if (!id) return false;
@@ -141,8 +142,6 @@ const deleteCompany = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, {}, "Company deleted successfully"));
 });
-
-const ALLOWED_ROLES = [UserRolesEnum.ADMIN, UserRolesEnum.USER];
 
 const createUser = asyncHandler(async (req, res) => {
   const { name = "", email = "", password = "", role } = req.body;
@@ -457,6 +456,152 @@ const getUsers = asyncHandler(async (req, res) => {
     );
 });
 
+const getUsersForDropdown = asyncHandler(async (req, res) => {
+  const currentUser = req.user;
+  const { companyId: requestedCompanyId } = req.query;
+
+  if (!currentUser || !currentUser._id) {
+    throw new ApiError(401, "Invalid user session", []);
+  }
+
+  const allowedRoles = [UserRolesEnum.ADMIN, UserRolesEnum.SUPERADMIN];
+  if (!allowedRoles.includes(currentUser.role)) {
+    throw new ApiError(403, "Access denied. Admin privileges required", []);
+  }
+
+  let targetCompanyId = requestedCompanyId || currentUser.companyId;
+
+  if (!isValidObjectId(targetCompanyId)) {
+    throw new ApiError(400, "Invalid company ID format", []);
+  }
+
+  // Only SUPERADMIN can request other companies
+  if (requestedCompanyId && !allowedRoles.includes(currentUser.role)) {
+    throw new ApiError(
+      403,
+      "Access denied. Only SUPERADMIN can view other companies' users",
+      []
+    );
+  }
+
+  const company = await Company.findById(targetCompanyId).populate({
+    path: "users",
+    select: "name", // only select name (id is always included)
+    options: { sort: { name: 1 } }, // optional sorting
+  });
+
+  if (!company) {
+    throw new ApiError(404, "Company not found", []);
+  }
+
+  // Additional security: ensure non-SUPERADMIN belongs to the company
+  if (
+    currentUser.role !== UserRolesEnum.SUPERADMIN &&
+    !company.users.some((u) => String(u._id) === String(currentUser._id))
+  ) {
+    throw new ApiError(
+      403,
+      "Access denied. You can only view users from your own company",
+      []
+    );
+  }
+
+  // Prepare minimal users
+  const users = company.users.map((user) => ({
+    _id: user._id,
+    name: user.name,
+  }));
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        users,
+        `Retrieved ${users.length} users from ${company.name}`
+      )
+    );
+});
+
+const createUserBySuperAdmin = asyncHandler(async (req, res) => {
+  const { name = "", email = "", password = "", role, companyId } = req.body;
+
+  // 1. Validate input
+  if (!name.trim()) throw new ApiError(400, "Name is required");
+  if (!email.trim()) throw new ApiError(400, "Email is required");
+  if (!password.trim()) throw new ApiError(400, "Password is required");
+  if (!role) throw new ApiError(400, "Role is required");
+  if (!companyId) throw new ApiError(400, "Company ID is required");
+
+  // Only SUPERADMIN role is allowed
+  if (req.user.role !== "SUPERADMIN") {
+    throw new ApiError(
+      400,
+      "Invalid role. Only SUPERADMIN can be assigned by this endpoint"
+    );
+  }
+
+  // 2. Validate companyId
+  if (!mongoose.Types.ObjectId.isValid(companyId)) {
+    throw new ApiError(400, "Invalid Company ID format");
+  }
+
+  // 3. Check company existence and status
+  const company = await Company.findById(companyId);
+  if (!company) throw new ApiError(404, "Company not found");
+  if (company.status === "suspended")
+    throw new ApiError(403, "Cannot create users for suspended companies");
+
+  // 4. Check for duplicate email or username
+  const lowerEmail = email.toLowerCase().trim();
+  if (await User.findOne({ email: lowerEmail }))
+    throw new ApiError(409, "User with this email already exists");
+
+  const baseUsername = lowerEmail.split("@")[0];
+  const usernameTaken = await User.findOne({ username: baseUsername });
+  const finalUsername = usernameTaken
+    ? `${baseUsername}_${Date.now()}`
+    : baseUsername;
+
+  // 5. Create user
+  const user = await User.create({
+    name: name.trim(),
+    email: lowerEmail,
+    password, // Should be hashed by pre-save middleware
+    username: finalUsername,
+    role,
+    companyId: new mongoose.Types.ObjectId(companyId),
+    isEmailVerified: false,
+  });
+  if (!user) throw new ApiError(500, "Failed to create user");
+
+  // 6. Add user to company.users if needed
+  if (!company.users.includes(user._id)) {
+    company.users.push(user._id);
+    await company.save();
+  }
+
+  // 7. Return response (omit sensitive info)
+  const safeUser = await User.findById(user._id).select(
+    "-password -refreshToken -emailVerificationToken -emailVerificationExpiry"
+  );
+
+  return res.status(201).json(
+    new ApiResponse(
+      201,
+      {
+        user: safeUser,
+        company: {
+          id: company._id,
+          name: company.name,
+          totalUsers: company.users.length,
+        },
+      },
+      "SUPERADMIN user created successfully"
+    )
+  );
+});
+
 export {
   createCompany,
   getCompanyById,
@@ -466,4 +611,6 @@ export {
   createUser,
   changeUserRole,
   getUsers,
+  getUsersForDropdown,
+  createUserBySuperAdmin,
 };

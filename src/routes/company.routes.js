@@ -14,10 +14,12 @@ import {
   changeUserRole,
   createCompany,
   createUser,
+  createUserBySuperAdmin,
   deleteCompany,
   getAllCompanies,
   getCompanyById,
   getUsers,
+  getUsersForDropdown,
   updateCompany,
 } from "../controllers/company.controller.js";
 import { mongoIdPathVariableValidator } from "../validators/common/mongodb.validators.js";
@@ -46,6 +48,26 @@ router
     verifyJWT,
     verifyPermission([UserRolesEnum.ADMIN, UserRolesEnum.SUPERADMIN]),
     getUsers
+  );
+
+
+  router
+  .route("/create-user-superadmin")
+  .post(
+    verifyJWT,
+    verifyPermission([UserRolesEnum.SUPERADMIN]),
+    // companyCreateValidator(), 
+    // validate, 
+    createUserBySuperAdmin
+  )
+
+
+router
+  .route("/get-dropdown-users")
+  .get(
+    verifyJWT,
+    verifyPermission([UserRolesEnum.ADMIN, UserRolesEnum.SUPERADMIN]),
+    getUsersForDropdown
   );
 
 router
