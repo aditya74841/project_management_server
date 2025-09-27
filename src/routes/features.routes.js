@@ -13,6 +13,7 @@ import {
   removeCommentFromFeature,
   toggleFeatureCompletion,
   getFeaturesByProjectId,
+  getProjectsName,
 } from "../controllers/feature.controller.js";
 import { addCommentValidator, assignUsersValidator, featureCreateValidator, featureUpdateValidator, removeUserValidator } from "../validators/project/features.validators.js";
 
@@ -21,6 +22,11 @@ const router = Router();
 router
   .route("/")
   .post(verifyJWT, featureCreateValidator(), validate, createFeature);
+
+
+  router
+  .route("/get-project-name")
+  .get(verifyJWT,  getProjectsName);
 
 router
   .route("/:featureId")
