@@ -579,3 +579,306 @@ export {
   changePassword,
   handleSocialLogin,
 };
+
+
+
+// // controllers/user.controller.js
+// import crypto from "crypto";
+// import jwt from "jsonwebtoken";
+// import { UserLoginType, UserRolesEnum } from "../constants.js";
+// import { User } from "../models/user.model.js";
+// import { ApiError } from "../utils/ApiError.js";
+// import { asyncHandler } from "../utils/asyncHandler.js";
+// import { ApiResponse } from "../utils/ApiResponse.js";
+// import { getLocalPath, getStaticFilePath, removeLocalFile } from "../utils/helpers.js";
+// import {
+//   emailVerificationMailgenContent,
+//   forgotPasswordMailgenContent,
+//   sendEmail,
+// } from "../utils/mail.js";
+
+// const hashToken = (token) =>
+//   crypto.createHash("sha256").update(token).digest("hex");
+
+// const cookieOptionsBase = {
+//   httpOnly: true,
+//   secure: true,           // required when SameSite=None
+//   sameSite: "none",       // cross-site OAuth/login compatible
+//   path: "/",
+// };
+
+// const ACCESS_TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
+// const REFRESH_TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 10; // 10 days
+
+// const generateAccessAndRefreshTokens = async (userId) => {
+//   try {
+//     const user = await User.findById(userId);
+//     const accessToken = user.generateAccessToken();
+//     const refreshToken = user.generateRefreshToken();
+//     user.refreshTokenHash = hashToken(refreshToken);
+//     await user.save({ validateBeforeSave: false });
+//     return { accessToken, refreshToken };
+//   } catch (error) {
+//     throw new ApiError(500, "Something went wrong while generating tokens");
+//   }
+// };
+
+// const registerUser = asyncHandler(async (req, res) => {
+//   const { name, email, password, role, phoneNumber = null } = req.body;
+
+//   const existedUser = await User.findOne({ email });
+//   if (existedUser) {
+//     throw new ApiError(409, "User with this email already exists", []);
+//   }
+
+//   const user = await User.create({
+//     name,
+//     email,
+//     password,
+//     username: email?.split("@")[0],
+//     phoneNumber: phoneNumber || null,
+//     isEmailVerified: false,
+//     role: role || UserRolesEnum.USER,
+//   });
+
+//   const { unHashedToken, hashedToken, tokenExpiry } = user.generateTemporaryToken();
+//   user.emailVerificationToken = hashedToken;
+//   user.emailVerificationExpiry = tokenExpiry;
+//   await user.save({ validateBeforeSave: false });
+
+//   // await sendEmail({
+//   //   email: user.email,
+//   //   subject: "Please verify your email",
+//   //   mailgenContent: emailVerificationMailgenContent(
+//   //     user.name || user.username || "user",
+//   //     `${req.protocol}://${req.get("host")}/api/v1/users/verify-email/${unHashedToken}`
+//   //   ),
+//   // });
+
+//   const createdUser = await User.findById(user._id)
+//     .select("-password -refreshTokenHash -emailVerificationToken -emailVerificationExpiry");
+//   if (!createdUser) {
+//     throw new ApiError(500, "Something went wrong while registering the user");
+//   }
+
+//   return res
+//     .status(201)
+//     .json(new ApiResponse(201, { user: createdUser }, "User registered; verification email sent"));
+// });
+
+// const loginUser = asyncHandler(async (req, res) => {
+//   const { email, password } = req.body;
+//   if (!email) throw new ApiError(400, "Email is required");
+
+//   const user = await User.findOne({ email });
+//   if (!user) throw new ApiError(404, "User does not exist");
+
+//   if (user.loginType !== UserLoginType.EMAIL_PASSWORD) {
+//     throw new ApiError(400, `Use ${user.loginType.toLowerCase()} to login`);
+//   }
+
+//   const isPasswordValid = await user.isPasswordCorrect(password);
+//   if (!isPasswordValid) throw new ApiError(401, "Invalid credentials");
+
+//   const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
+//   const loggedInUser = await User.findById(user._id)
+//     .select("-password -refreshTokenHash -emailVerificationToken -emailVerificationExpiry");
+
+//   return res
+//     .status(200)
+//     .cookie("accessToken", accessToken, { ...cookieOptionsBase, maxAge: ACCESS_TOKEN_TTL_MS })
+//     .cookie("refreshToken", refreshToken, { ...cookieOptionsBase, maxAge: REFRESH_TOKEN_TTL_MS })
+//     .json(new ApiResponse(200, { user: loggedInUser, accessToken }, "Logged in successfully"));
+// });
+
+// const logoutUser = asyncHandler(async (req, res) => {
+//   await User.findByIdAndUpdate(req.user._id, { $set: { refreshTokenHash: undefined } });
+
+//   return res
+//     .status(200)
+//     .clearCookie("accessToken", cookieOptionsBase)
+//     .clearCookie("refreshToken", cookieOptionsBase)
+//     .json(new ApiResponse(200, {}, "Logged out"));
+// });
+
+// const verifyEmail = asyncHandler(async (req, res) => {
+//   const { verificationToken } = req.params;
+//   if (!verificationToken) throw new ApiError(400, "Verification token is missing");
+
+//   const hashedToken = hashToken(verificationToken);
+//   const user = await User.findOne({
+//     emailVerificationToken: hashedToken,
+//     emailVerificationExpiry: { $gt: Date.now() },
+//   });
+//   if (!user) throw new ApiError(400, "Token is invalid or expired");
+
+//   user.emailVerificationToken = undefined;
+//   user.emailVerificationExpiry = undefined;
+//   user.isEmailVerified = true;
+//   await user.save({ validateBeforeSave: false });
+
+//   return res.status(200).json(new ApiResponse(200, { isEmailVerified: true }, "Email verified"));
+// });
+
+// const resendEmailVerification = asyncHandler(async (req, res) => {
+//   const user = await User.findById(req.user?._id);
+//   if (!user) throw new ApiError(404, "User does not exist");
+//   if (user.isEmailVerified) throw new ApiError(409, "Email is already verified");
+
+//   const { unHashedToken, hashedToken, tokenExpiry } = user.generateTemporaryToken();
+//   user.emailVerificationToken = hashedToken;
+//   user.emailVerificationExpiry = tokenExpiry;
+//   await user.save({ validateBeforeSave: false });
+
+//   await sendEmail({
+//     email: user.email,
+//     subject: "Please verify your email",
+//     mailgenContent: emailVerificationMailgenContent(
+//       user.username || user.name || "user",
+//       `${req.protocol}://${req.get("host")}/api/v1/users/verify-email/${unHashedToken}`
+//     ),
+//   });
+
+//   return res.status(200).json(new ApiResponse(200, {}, "Verification email sent"));
+// });
+
+// const refreshAccessToken = asyncHandler(async (req, res) => {
+//   const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+//   if (!incomingRefreshToken) throw new ApiError(401, "Unauthorized request");
+
+//   try {
+//     const decoded = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+//     const user = await User.findById(decoded?._id);
+//     if (!user) throw new ApiError(401, "Invalid refresh token");
+
+//     const incomingHash = hashToken(incomingRefreshToken);
+//     if (incomingHash !== user.refreshTokenHash) {
+//       throw new ApiError(401, "Refresh token is expired or used");
+//     }
+
+//     const { accessToken, refreshToken: newRefreshToken } =
+//       await generateAccessAndRefreshTokens(user._id);
+
+//     return res
+//       .status(200)
+//       .cookie("accessToken", accessToken, { ...cookieOptionsBase, maxAge: ACCESS_TOKEN_TTL_MS })
+//       .cookie("refreshToken", newRefreshToken, { ...cookieOptionsBase, maxAge: REFRESH_TOKEN_TTL_MS })
+//       .json(new ApiResponse(200, { accessToken, refreshToken: newRefreshToken }, "Token refreshed"));
+//   } catch (error) {
+//     throw new ApiError(401, error?.message || "Invalid refresh token");
+//   }
+// });
+
+// const forgotPasswordRequest = asyncHandler(async (req, res) => {
+//   const { email } = req.body;
+//   // Optional: respond neutrally to avoid user enumeration
+//   const user = await User.findOne({ email });
+//   if (user) {
+//     const { unHashedToken, hashedToken, tokenExpiry } = user.generateTemporaryToken();
+//     user.forgotPasswordToken = hashedToken;
+//     user.forgotPasswordExpiry = tokenExpiry;
+//     await user.save({ validateBeforeSave: false });
+
+//     await sendEmail({
+//       email: user.email,
+//       subject: "Password reset request",
+//       mailgenContent: forgotPasswordMailgenContent(
+//         user.username || user.name || "user",
+//         `${process.env.CLIENT_URL}/reset-password/${unHashedToken}`
+//       ),
+//     });
+//   }
+//   return res.status(200).json(new ApiResponse(200, {}, "If the account exists, a reset email has been sent"));
+// });
+
+// const resetForgottenPassword = asyncHandler(async (req, res) => {
+//   const { resetToken } = req.params;
+//   const { newPassword } = req.body;
+
+//   const hashedToken = hashToken(resetToken);
+//   const user = await User.findOne({
+//     forgotPasswordToken: hashedToken,
+//     forgotPasswordExpiry: { $gt: Date.now() },
+//   });
+//   if (!user) throw new ApiError(400, "Token is invalid or expired");
+
+//   user.forgotPasswordToken = undefined;
+//   user.forgotPasswordExpiry = undefined;
+//   user.password = newPassword;
+//   await user.save(); // run validators and pre('save') hashing
+
+//   return res.status(200).json(new ApiResponse(200, {}, "Password reset successfully"));
+// });
+
+// const assignRole = asyncHandler(async (req, res) => {
+//   const { userId } = req.params;
+//   const { role } = req.body;
+//   const user = await User.findById(userId);
+//   if (!user) throw new ApiError(404, "User does not exist");
+
+//   user.role = role;
+//   await user.save({ validateBeforeSave: false });
+//   return res.status(200).json(new ApiResponse(200, {}, "Role changed"));
+// });
+
+// const getCurrentUser = asyncHandler(async (req, res) => {
+//   return res.status(200).json(new ApiResponse(200, req.user, "Current user"));
+// });
+
+// const updateUserAvatar = asyncHandler(async (req, res) => {
+//   if (!req.file?.filename) throw new ApiError(400, "Avatar image is required");
+
+//   const avatarUrl = getStaticFilePath(req, req.file.filename);
+//   const avatarLocalPath = getLocalPath(req.file.filename);
+//   const user = await User.findById(req.user._id);
+
+//   const updatedUser = await User.findByIdAndUpdate(
+//     req.user._id,
+//     { $set: { avatar: { url: avatarUrl, localPath: avatarLocalPath } } },
+//     { new: true }
+//   ).select("-password");
+
+//   removeLocalFile(user.avatar?.localPath);
+//   return res.status(200).json(new ApiResponse(200, updatedUser, "Avatar updated"));
+// });
+
+// const changeCurrentPassword = asyncHandler(async (req, res) => {
+//   const { oldPassword, newPassword } = req.body;
+//   const user = await User.findById(req.user?._id);
+//   const isPasswordValid = await user.isPasswordCorrect(oldPassword);
+//   if (!isPasswordValid) throw new ApiError(400, "Invalid old password");
+
+//   user.password = newPassword;
+//   await user.save(); // pre('save') hash
+//   return res.status(200).json(new ApiResponse(200, {}, "Password changed"));
+// });
+
+// // Google/GitHub OAuth callback: set HttpOnly cookies and redirect without tokens in URL
+// const handleSocialLogin = asyncHandler(async (req, res) => {
+//   const user = await User.findById(req.user?._id);
+//   if (!user) throw new ApiError(404, "User does not exist");
+
+//   const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
+
+//   return res
+//     .status(302)
+//     .cookie("accessToken", accessToken, { ...cookieOptionsBase, maxAge: ACCESS_TOKEN_TTL_MS })
+//     .cookie("refreshToken", refreshToken, { ...cookieOptionsBase, maxAge: REFRESH_TOKEN_TTL_MS })
+//     .redirect(process.env.CLIENT_SSO_REDIRECT_URL);
+// });
+
+// export {
+//   registerUser,
+//   loginUser,
+//   logoutUser,
+//   assignRole,
+//   getCurrentUser,
+//   updateUserAvatar,
+//   changeCurrentPassword,
+//   verifyEmail,
+//   resendEmailVerification,
+//   refreshAccessToken,
+//   forgotPasswordRequest,
+//   resetForgottenPassword,
+//   handleSocialLogin,
+// };

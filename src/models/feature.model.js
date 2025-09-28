@@ -70,6 +70,8 @@ const featureSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace", default: null }, // add-only
+    tenantId: { type: Schema.Types.ObjectId, ref: "Tenant", default: null }, // add-only alternative
   },
   { timestamps: true }
 );
@@ -77,4 +79,20 @@ const featureSchema = new Schema(
 // Index for queries like "all completed features of a project"
 featureSchema.index({ projectId: 1, status: 1 });
 
+
+featureSchema.pre('deleteOne', { document: true, query: false }, async function() {
+  await mongoose.model('Project').updateMany(
+    { features: this._id },
+    { $pull: { features: this._id } }
+  );
+});
+
+// featureSchema.index(
+//   { workspaceId: 1, status: 1 }, 
+//   { partialFilterExpression: { workspaceId: { $exists: true } } }
+// );
+// featureSchema.index(
+//   { tenantId: 1, status: 1 }, 
+//   { partialFilterExpression: { tenantId: { $exists: true } } }
+// );
 export const Feature = mongoose.model("Feature", featureSchema);

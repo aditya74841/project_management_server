@@ -123,9 +123,9 @@ export const deleteFeature = asyncHandler(async (req, res) => {
   if (!feature) throw new ApiError(404, "Feature not found");
 
   // Remove from project.features
-  await Project.findByIdAndUpdate(feature.projectId, {
-    $pull: { features: feature._id },
-  });
+  // await Project.findByIdAndUpdate(feature.projectId, {
+  //   $pull: { features: feature._id },
+  // });
 
   await feature.deleteOne();
 
@@ -242,19 +242,22 @@ export const toggleFeatureCompletion = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, { feature }, "Feature completion toggled"));
 });
 
-
 export const getProjectsName = asyncHandler(async (req, res) => {
-  if (!req.user.companyId) {
-    throw new ApiError(409, "You are not allowed to get projects");
-  }
+  // if (!req.user.companyId) {
+  //   throw new ApiError(409, "You are not allowed to get projects");
+  // }
 
-  const projects = await Project.find({ companyId: req.user.companyId }).select("name _id");
-  
+  const projects = await Project.find({ createdBy: req.user._id }).select(
+    "name _id"
+  );
+
   if (!projects) {
     throw new ApiError(500, "Something went wrong while fetching the data");
   }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, projects || [], "Projects fetched successfully"));
+    .json(
+      new ApiResponse(200, projects || [], "Projects fetched successfully")
+    );
 });

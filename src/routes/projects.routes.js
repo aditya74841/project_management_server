@@ -1,3 +1,5 @@
+
+
 import { Router } from "express";
 import { UserRolesEnum } from "../constants.js";
 import {
@@ -33,7 +35,7 @@ router
   .route("/")
   .post(
     verifyJWT,
-    verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN]),
+    verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN,UserRolesEnum.USER]),
     projectCreateValidator(),
     validate,
     createProject
@@ -45,7 +47,7 @@ router
   .get(verifyJWT, mongoIdPathVariableValidator("projectId"), getProjectById)
   .patch(
     verifyJWT,
-    verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN]),
+    verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN,UserRolesEnum.USER]),
     projectUpdateValidator(),
     validate,
     mongoIdPathVariableValidator("projectId"),
@@ -53,7 +55,7 @@ router
   )
   .delete(
     verifyJWT,
-    verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN]),
+    verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN,UserRolesEnum.USER]),
     mongoIdPathVariableValidator("projectId"),
     deleteProject
   );
@@ -105,3 +107,138 @@ router.delete(
 );
 
 export default router;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// // routes/project.routes.js
+// import { Router } from "express";
+// import { UserRolesEnum } from "../constants.js";
+// import { verifyJWT, verifyPermission } from "../middlewares/auth.middlewares.js";
+// import { validate } from "../validators/validate.js";
+// import {
+//   projectCreateValidator,
+//   projectUpdateValidator,
+//   // projectMemberValidator,
+//   projectFeatureValidator,
+//   // projectMemberRoleValidator,
+// } from "../validators/project/project.validators.js";
+// import {
+//   createProject,
+//   getProjectById,
+//   updateProject,
+//   deleteProject,
+//   toggleProjectVisibility,
+//   addMemberToProject,
+//   removeMemberFromProject,
+//   updateMemberRole,
+//   assignFeatureToProject,
+//   unassignFeatureFromProject,
+//   getProjects,
+// } from "../controllers/projects.controller.js";
+// import { mongoIdPathVariableValidator } from "../validators/common/mongodb.validators.js";
+
+// const router = Router();
+
+// // Project CRUD
+// router
+//   .route("/")
+//   .post(
+//     verifyJWT,
+//     verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN, UserRolesEnum.USER]),
+//     projectCreateValidator(),
+//     validate,
+//     createProject
+//   )
+//   .get(verifyJWT, getProjects);
+
+// router
+//   .route("/:projectId")
+//   .get(
+//     verifyJWT,
+//     mongoIdPathVariableValidator("projectId"),
+//     getProjectById
+//   )
+//   .patch(
+//     verifyJWT,
+//     mongoIdPathVariableValidator("projectId"),
+//     projectUpdateValidator(),
+//     validate,
+//     updateProject
+//   )
+//   .delete(
+//     verifyJWT,
+//     mongoIdPathVariableValidator("projectId"),
+//     deleteProject
+//   );
+
+// // Toggle project visibility
+// router.patch(
+//   "/:projectId/toggle-visibility",
+//   verifyJWT,
+//   mongoIdPathVariableValidator("projectId"),
+//   toggleProjectVisibility
+// );
+
+// // Member management
+// router.post(
+//   "/:projectId/members",
+//   verifyJWT,
+//   mongoIdPathVariableValidator("projectId"),
+//   // projectMemberValidator(),
+//   validate,
+//   addMemberToProject
+// );
+
+// router.patch(
+//   "/:projectId/members/role",
+//   verifyJWT,
+//   mongoIdPathVariableValidator("projectId"),
+//   // projectMemberRoleValidator(),
+//   validate,
+//   updateMemberRole
+// );
+
+// router.delete(
+//   "/:projectId/members",
+//   verifyJWT,
+//   mongoIdPathVariableValidator("projectId"),
+//   // projectMemberValidator(),
+//   validate,
+//   removeMemberFromProject
+// );
+
+// // Feature management
+// router.post(
+//   "/:projectId/features",
+//   verifyJWT,
+//   mongoIdPathVariableValidator("projectId"),
+//   projectFeatureValidator(),
+//   validate,
+//   assignFeatureToProject
+// );
+
+// router.delete(
+//   "/:projectId/features",
+//   verifyJWT,
+//   mongoIdPathVariableValidator("projectId"),
+//   projectFeatureValidator(),
+//   validate,
+//   unassignFeatureFromProject
+// );
+
+// export default router;
+
+
+
+
