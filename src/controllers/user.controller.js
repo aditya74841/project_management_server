@@ -41,7 +41,9 @@ const generateAccessAndRefreshTokens = async (userId) => {
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, role, phoneNumber = null } = req.body;
 
-  // console.log("Checking console on registerUser Controller");
+
+
+  console.log("Checking console on registerUser Controller");
 
   // const existedUser = await User.findOne({
   //   $or: [{ phoneNumber }, { email }],
@@ -73,16 +75,16 @@ const registerUser = asyncHandler(async (req, res) => {
 
   await user.save({ validateBeforeSave: false });
 
-  await sendEmail({
-    email: user?.email,
-    subject: "Please verify your email",
-    mailgenContent: emailVerificationMailgenContent(
-      user.name,
-      `${req.protocol}://${req.get(
-        "host"
-      )}/api/v1/users/verify-email/${unHashedToken}`
-    ),
-  });
+  // await sendEmail({
+  //   email: user?.email,
+  //   subject: "Please verify your email",
+  //   mailgenContent: emailVerificationMailgenContent(
+  //     user.name,
+  //     `${req.protocol}://${req.get(
+  //       "host"
+  //     )}/api/v1/users/verify-email/${unHashedToken}`
+  //   ),
+  // });
 
   const createdUser = await User.findById(user._id).select(
     "-password -refreshToken -emailVerificationToken -emailVerificationExpiry"

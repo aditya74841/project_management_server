@@ -13,12 +13,10 @@ const userRegisterValidator = () => {
       .withMessage("Email is invalid"),
     body("password").trim().notEmpty().withMessage("Password is required"),
     body("phoneNumber")
-      .optional()
-      .trim()
-      .notEmpty()
-      .withMessage("Phone number is required")
-      .isMobilePhone()
-      .withMessage("Phone number is invalid"),
+    .optional({ checkFalsy: true }) // or .optional({ values: 'falsy' })
+    .trim()
+    .isMobilePhone()
+    .withMessage("Phone number is invalid"),
     body("role")
       .optional()
       .isIn(AvailableUserRoles)
