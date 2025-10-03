@@ -47,7 +47,10 @@ app.set("io", io);
 // ------------------- GLOBAL MIDDLEWARES ------------------- //
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: [
+      "http://localhost:3000",
+      "https://project-management-client-amber.vercel.app",
+    ],
     credentials: true,
   })
 );
