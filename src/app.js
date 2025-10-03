@@ -34,15 +34,15 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const httpServer = createServer(app);
 
-const io = new Server(httpServer, {
-  pingTimeout: 60000,
-  cors: {
-    origin: process.env.CORS_ORIGIN,
-    credentials: true,
-  },
-});
+// const io = new Server(httpServer, {
+//   pingTimeout: 60000,
+//   cors: {
+//     origin: process.env.CORS_ORIGIN,
+//     credentials: true,
+//   },
+// });
 
-app.set("io", io);
+// app.set("io", io);
 
 // ------------------- GLOBAL MIDDLEWARES ------------------- //
 app.use(
