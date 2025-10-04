@@ -23,13 +23,10 @@ import companyRouter from "./routes/company.routes.js";
 import projectRouter from "./routes/projects.routes.js";
 import featureRouter from "./routes/features.routes.js";
 
-
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Correct absolute path
-
 
 const app = express();
 const httpServer = createServer(app);
@@ -50,6 +47,7 @@ app.use(
     origin: [
       "http://localhost:3000",
       "https://project-management-client-amber.vercel.app",
+      "https://pm.allaboutcse.com",
     ],
     credentials: true,
   })
@@ -57,17 +55,14 @@ app.use(
 
 app.use(requestIp.mw());
 
-
 // const swaggerDocument = YAML.load("../docs/swagger.yaml");
 
 // app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-
 
 const swaggerDocument = YAML.load(path.join(__dirname, "docs", "swagger.yaml"));
 
 // Mount route
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-
 
 // Rate limiter
 const limiter = rateLimit({
