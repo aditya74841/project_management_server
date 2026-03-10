@@ -147,25 +147,26 @@ import {
   updateUserAvatar,
   verifyEmail,
 } from "../controllers/user.controller.js";
+import { authRateLimiter } from "../middlewares/ratelimit.middlewares.js";
 
 const router = Router();
 
-// Unsecured route
-router.route("/register").post(userRegisterValidator(), validate, registerUser);
-router.route("/login").post(userLoginValidator(), validate, loginUser);
+// Unsecured routes
+router.route("/register").post(authRateLimiter, userRegisterValidator(), validate, registerUser);
+router.route("/login").post(authRateLimiter, userLoginValidator(), validate, loginUser);
 router.route("/refresh-token").post(refreshAccessToken);
 router.route("/verify-email/:verificationToken").get(verifyEmail);
 
 
 
 
-//TODO: NEED TO WORK ON THIS FORGET PASSWORD NOT WORK
 router
   .route("/forgot-password")
-  .post(userForgotPasswordValidator(), validate, forgotPasswordRequest);
+  .post(authRateLimiter, userForgotPasswordValidator(), validate, forgotPasswordRequest);
 router
   .route("/reset-password/:resetToken")
   .post(
+    authRateLimiter,
     userResetForgottenPasswordValidator(),
     validate,
     resetForgottenPassword
@@ -186,10 +187,10 @@ router
     changeCurrentPassword
   );
 
-// TODO Below Routes NOT WORKING
+// Secured routes for user actions
 router
   .route("/change-password-directly/:userId")
-  .post(verifyJWT, changePassword);
+  .post(verifyJWT, verifyPermission([UserRolesEnum.ADMIN]), changePassword);
 router
   .route("/resend-email-verification")
   .post(verifyJWT, resendEmailVerification);
@@ -227,7 +228,7 @@ router.route("/github").get(
 
 router
   .route("/google/callback")
-  .get(passport.authenticate("google",{
+  .get(passport.authenticate("google", {
     failureRedirect: '/login', // Redirect to login page on failure
     session: false // Disable session creation during OAuth flow
   }), handleSocialLogin);

@@ -22,6 +22,7 @@ import userRouter from "./routes/user.routes.js";
 import companyRouter from "./routes/company.routes.js";
 import projectRouter from "./routes/projects.routes.js";
 import featureRouter from "./routes/features.routes.js";
+import projectDiaryRouter from "./routes/projectDiary.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -103,6 +104,7 @@ app.use("/api/v1/users", userRouter);
 app.use("/api/v1/companies", companyRouter);
 app.use("/api/v1/projects", projectRouter);
 app.use("/api/v1/features", featureRouter);
+app.use("/api/v1/project-diaries", projectDiaryRouter);
 
 // Root test route
 app.use("/", (req, res) => {

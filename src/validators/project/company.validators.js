@@ -50,12 +50,12 @@ const companyUpdateValidator = () => {
 // Enhanced ObjectId validation function
 const isValidObjectId = (value) => {
   if (!value) return false;
-  
+
   // Check basic ObjectId format
   if (!mongoose.Types.ObjectId.isValid(value)) {
     return false;
   }
-  
+
   // Ensure string representation matches original (prevents edge cases)
   return String(new mongoose.Types.ObjectId(value)) === String(value);
 };
@@ -66,7 +66,7 @@ const createUserValidator = () => {
     body("name")
       .trim()
       .notEmpty()
-      .withMessage("Name is requiredddddd")
+      .withMessage("Name is required")
       .isLength({ min: 2, max: 50 })
       .withMessage("Name must be between 2 and 50 characters")
       .matches(/^[a-zA-Z\s\-\.\']+$/)
@@ -102,8 +102,8 @@ const createUserValidator = () => {
   ];
 };
 
-export { 
-  companyCreateValidator, 
-  companyUpdateValidator, 
-  createUserValidator 
+export {
+  companyCreateValidator,
+  companyUpdateValidator,
+  createUserValidator
 };

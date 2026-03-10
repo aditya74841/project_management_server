@@ -13,10 +13,10 @@ const userRegisterValidator = () => {
       .withMessage("Email is invalid"),
     body("password").trim().notEmpty().withMessage("Password is required"),
     body("phoneNumber")
-    .optional({ checkFalsy: true }) // or .optional({ values: 'falsy' })
-    .trim()
-    .isMobilePhone()
-    .withMessage("Phone number is invalid"),
+      .optional({ checkFalsy: true }) // or .optional({ values: 'falsy' })
+      .trim()
+      .isMobilePhone()
+      .withMessage("Phone number is invalid"),
     body("role")
       .optional()
       .isIn(AvailableUserRoles)
@@ -40,7 +40,8 @@ const userRegisterStaffValidator = () => {
 
 const userLoginValidator = () => {
   return [
-    body("email").optional().isEmail().withMessage("Email is required"),
+    body("email").optional().isEmail().withMessage("Email is invalid"),
+    body("emailOrPhone").optional(),
     body("username").optional(),
     body("password").notEmpty().withMessage("Password is required"),
   ];

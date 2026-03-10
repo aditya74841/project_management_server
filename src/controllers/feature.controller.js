@@ -122,11 +122,6 @@ export const deleteFeature = asyncHandler(async (req, res) => {
   const feature = await Feature.findById(featureId);
   if (!feature) throw new ApiError(404, "Feature not found");
 
-  // Remove from project.features
-  // await Project.findByIdAndUpdate(feature.projectId, {
-  //   $pull: { features: feature._id },
-  // });
-
   await feature.deleteOne();
 
   return res

@@ -45,16 +45,12 @@ const registerUser = asyncHandler(async (req, res) => {
 
   console.log("Checking console on registerUser Controller");
 
-  // const existedUser = await User.findOne({
-  //   $or: [{ phoneNumber }, { email }],
-  // });
-
   const existedUser = await User.findOne({
     email,
   });
 
   if (existedUser) {
-    throw new ApiError(409, "User with email or PhoneNumer already exists", []);
+    throw new ApiError(409, "User with this email already exists", []);
   }
 
   const user = await User.create({
@@ -75,16 +71,16 @@ const registerUser = asyncHandler(async (req, res) => {
 
   await user.save({ validateBeforeSave: false });
 
-  // await sendEmail({
-  //   email: user?.email,
-  //   subject: "Please verify your email",
-  //   mailgenContent: emailVerificationMailgenContent(
-  //     user.name,
-  //     `${req.protocol}://${req.get(
-  //       "host"
-  //     )}/api/v1/users/verify-email/${unHashedToken}`
-  //   ),
-  // });
+  await sendEmail({
+    email: user?.email,
+    subject: "Please verify your email",
+    mailgenContent: emailVerificationMailgenContent(
+      user.name,
+      `${req.protocol}://${req.get(
+        "host"
+      )}/api/v1/users/verify-email/${unHashedToken}`
+    ),
+  });
 
   const createdUser = await User.findById(user._id).select(
     "-password -refreshToken -emailVerificationToken -emailVerificationExpiry"
@@ -119,24 +115,22 @@ function generateRandomPassword() {
 }
 
 const loginUser = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { email, username, emailOrPhone, password } = req.body;
 
-  if (!email) {
-    throw new ApiError(400, "Username or email is required");
+  if (!email && !username && !emailOrPhone) {
+    throw new ApiError(400, "Username, email or phone is required");
   }
 
   const user = await User.findOne({
-    email,
+    $or: [
+      { email: email || emailOrPhone },
+      { username: username },
+      { phoneNumber: emailOrPhone }
+    ],
   });
 
-  // const user = await User.findOne({
-  //   $or: [{ phoneNumber }, { email }],
-  // });
-
-  // console.log("The user is ", user);
-
   if (!user) {
-    throw new ApiError(404, "User does not exists");
+    throw new ApiError(404, "User does not exist");
   }
 
   if (user.loginType !== UserLoginType.EMAIL_PASSWORD) {
@@ -161,19 +155,19 @@ const loginUser = asyncHandler(async (req, res) => {
   );
   const accessTokenExpiry = 1000 * 60 * 60 * 24 * 7; // 7 days in ms
   const refreshTokenExpiry = 1000 * 60 * 60 * 24 * 7; // 7 days in ms
-  
+
   const cookieOptionsAccess = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "none",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     maxAge: accessTokenExpiry,
     path: "/",
   };
-  
+
   const cookieOptionsRefresh = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "none",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     maxAge: refreshTokenExpiry,
     path: "/",
   };
@@ -208,8 +202,8 @@ const logoutUser = asyncHandler(async (req, res) => {
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "none",
-    path: "/", 
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    path: "/",
   };
 
   return res
@@ -242,7 +236,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
   });
 
   if (!user) {
-    throw new ApiError(489, "Token is invalid or expired");
+    throw new ApiError(400, "Token is invalid or expired");
   }
 
   // If we found the user that means the token is valid
@@ -363,35 +357,29 @@ const forgotPasswordRequest = asyncHandler(async (req, res) => {
   // Generate a temporary token
   const { unHashedToken, hashedToken, tokenExpiry } =
     user.generateTemporaryToken(); // generate password reset creds
-  const randomPassword = generateRandomPassword();
+
   // save the hashed version a of the token and expiry in the DB
   user.forgotPasswordToken = hashedToken;
   user.forgotPasswordExpiry = tokenExpiry;
-  user.password = randomPassword;
   await user.save({ validateBeforeSave: false });
 
-  // Send mail with the password reset link. It should be the link of the frontend url with token
-  // await sendEmail({
-  //   email: user?.email,
-  //   subject: "Password reset request",
-  //   mailgenContent: forgotPasswordMailgenContent(
-  //     user.username,
-  //     // * Ideally take the url from the .env file which should be teh url of the frontend
-  //     `${req.protocol}://${req.get(
-  //       "host"
-  //     )}/api/v1/users/reset-password/${unHashedToken}`
-  //   ),
-  // });
+  // Send mail with the password reset link
+  const resetUrl = `${req.protocol}://${req.get(
+    "host"
+  )}/api/v1/users/reset-password/${unHashedToken}`;
 
-  await sendPlainTextEmail({
-    email: user.email,
-    subject: "Your Temporary Password",
-    mailgenContent: `Hello ${user.name || "user"},\n\nYour temporary password is: ${randomPassword}\n\nPlease use this password to login and change it after your first login.\n\nThank you,\nThe Admin Team`,
+  await sendEmail({
+    email: user?.email,
+    subject: "Password reset request",
+    mailgenContent: forgotPasswordMailgenContent(
+      user.name,
+      resetUrl // Ideally take the url from the .env file mapping to the frontend if decoupled
+    ),
   });
 
   return res
     .status(200)
-    .json(new ApiResponse(200, {}, "Random Password is sent to your mail ID"));
+    .json(new ApiResponse(200, {}, "Password reset link sent to your email ID"));
 });
 
 const resetForgottenPassword = asyncHandler(async (req, res) => {
@@ -415,7 +403,7 @@ const resetForgottenPassword = asyncHandler(async (req, res) => {
 
   // If either of the one is false that means the token is invalid or expired
   if (!user) {
-    throw new ApiError(489, "Token is invalid or expired");
+    throw new ApiError(400, "Token is invalid or expired");
   }
 
   // if everything is ok and token id valid
@@ -439,6 +427,11 @@ const assignRole = asyncHandler(async (req, res) => {
   if (!user) {
     throw new ApiError(404, "User does not exist");
   }
+
+  if (!AvailableUserRoles.includes(role)) {
+    throw new ApiError(400, "Invalid role");
+  }
+
   user.role = role;
   await user.save({ validateBeforeSave: false });
 
@@ -548,21 +541,18 @@ const changePassword = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Password is Required");
   }
 
-  const user = await User.findByIdAndUpdate(
-    userId,
-    {
-      $set: {
-        password: password,
-      },
-    },
-    { new: true }
-  );
+  const user = await User.findById(userId);
+
   if (!user) {
-    throw new ApiError(500, "Something went wrong when updating password");
+    throw new ApiError(404, "User not found");
   }
+
+  user.password = password;
+  await user.save({ validateBeforeSave: false });
+
   return res
-    .status(201)
-    .json(new ApiResponse(201, user, "Password updated successfullyy"));
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password updated successfully"));
 });
 
 export {
