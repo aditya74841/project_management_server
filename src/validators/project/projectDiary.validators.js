@@ -121,5 +121,9 @@ export const getAllDiaryValidator = () => {
         query("limit").optional().isInt({ min: 1, max: 100 }).withMessage("Limit must be a number between 1 and 100"),
         query("status").optional().isIn(["idea", "scoping", "in-progress", "completed", "archived"]),
         query("priority").optional().isIn(["low", "medium", "high"]),
+        query("projectId")
+            .optional()
+            .isMongoId()
+            .withMessage("projectId must be a valid MongoDB ObjectId"),
     ];
 };

@@ -38,12 +38,19 @@ const generateAccessAndRefreshTokens = async (userId) => {
   }
 };
 
+const getClientBaseUrl = (req) => {
+  return (
+    process.env.CLIENT_URL ||
+    process.env.CLIENT_BASE_URL ||
+    process.env.CLIENT_APP_URL ||
+    "http://localhost:3000"
+  );
+};
+
 const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, password, role, phoneNumber = null } = req.body;
+  const { name, email, password, phoneNumber = null } = req.body;
 
 
-
-  console.log("Checking console on registerUser Controller");
 
   const existedUser = await User.findOne({
     email,
@@ -59,28 +66,12 @@ const registerUser = asyncHandler(async (req, res) => {
     password,
     username: email?.split(`@`)[0],
     phoneNumber: phoneNumber || null,
-    isEmailVerified: false,
-    role: role || UserRolesEnum.USER,
+    role: UserRolesEnum.USER,
   });
 
-  const { unHashedToken, hashedToken, tokenExpiry } =
-    user.generateTemporaryToken();
 
-  user.emailVerificationToken = hashedToken;
-  user.emailVerificationExpiry = tokenExpiry;
 
-  await user.save({ validateBeforeSave: false });
 
-  await sendEmail({
-    email: user?.email,
-    subject: "Please verify your email",
-    mailgenContent: emailVerificationMailgenContent(
-      user.name,
-      `${req.protocol}://${req.get(
-        "host"
-      )}/api/v1/users/verify-email/${unHashedToken}`
-    ),
-  });
 
   const createdUser = await User.findById(user._id).select(
     "-password -refreshToken -emailVerificationToken -emailVerificationExpiry"
@@ -96,23 +87,12 @@ const registerUser = asyncHandler(async (req, res) => {
       new ApiResponse(
         200,
         { user: createdUser },
-        "Users registered successfully and verification email has been sent on your email."
+        "Users registered successfully "
       )
     );
 });
 
-// Function to generate random password
-function generateRandomPassword() {
-  const length = 8;
-  const charset =
-    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let password = "";
-  for (let i = 0; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * charset.length);
-    password += charset[randomIndex];
-  }
-  return password;
-}
+
 
 const loginUser = asyncHandler(async (req, res) => {
   const { email, username, emailOrPhone, password } = req.body;
@@ -364,9 +344,7 @@ const forgotPasswordRequest = asyncHandler(async (req, res) => {
   await user.save({ validateBeforeSave: false });
 
   // Send mail with the password reset link
-  const resetUrl = `${req.protocol}://${req.get(
-    "host"
-  )}/api/v1/users/reset-password/${unHashedToken}`;
+  const resetUrl = `${getClientBaseUrl(req).replace(/\/$/, "")}/reset-password/${unHashedToken}`;
 
   await sendEmail({
     email: user?.email,
@@ -379,7 +357,13 @@ const forgotPasswordRequest = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(200, {}, "Password reset link sent to your email ID"));
+    .json(
+      new ApiResponse(
+        200,
+        {},
+        "Reset link sent to your email address"
+      )
+    );
 });
 
 const resetForgottenPassword = asyncHandler(async (req, res) => {
@@ -571,5 +555,4 @@ export {
   changePassword,
   handleSocialLogin,
 };
-
 

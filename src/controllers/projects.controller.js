@@ -13,6 +13,7 @@ export const createProject = asyncHandler(async (req, res) => {
     description,
     deadline,
     members = [],
+    status = "draft",
   } = req.body;
 
   // Validate required fields
@@ -76,6 +77,7 @@ export const createProject = asyncHandler(async (req, res) => {
     createdBy: req.user._id,
     members: validatedMembers,
     deadline: deadline || null,
+    status,
   });
 
   const createdProject = await Project.findById(project._id)
@@ -191,10 +193,23 @@ export const updateProject = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Project not found");
   }
 
-  project.name = name || project.name;
-  project.description = description || project.description;
-  project.deadline = deadline || project.deadline;
-  project.status = status || project.status;
+  if (typeof name === "string" && name.trim()) {
+    project.name = name.trim();
+  }
+
+  if (typeof description === "string") {
+    project.description = description.trim();
+  }
+
+  if (deadline === null || deadline === "") {
+    project.deadline = null;
+  } else if (deadline !== undefined) {
+    project.deadline = deadline;
+  }
+
+  if (typeof status === "string" && status.trim()) {
+    project.status = status;
+  }
 
   await project.save();
 
@@ -352,4 +367,3 @@ export const unassignFeatureFromProject = asyncHandler(async (req, res) => {
       )
     );
 });
-

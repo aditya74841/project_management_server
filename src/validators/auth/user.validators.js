@@ -17,10 +17,7 @@ const userRegisterValidator = () => {
       .trim()
       .isMobilePhone()
       .withMessage("Phone number is invalid"),
-    body("role")
-      .optional()
-      .isIn(AvailableUserRoles)
-      .withMessage("Role is invalid"),
+
   ];
 };
 

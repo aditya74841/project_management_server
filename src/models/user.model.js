@@ -50,7 +50,6 @@ const userSchema = new Schema({
     type: String,
     enum: AvailableUserRoles,
     default: UserRolesEnum.USER,
-    required: true,
   },
   loginType: {
     type: String,
@@ -100,7 +99,7 @@ const userSchema = new Schema({
   //     role: { type: String, trim: true }, // e.g., OWNER, ADMIN, EDITOR, VIEWER
   //   },
   // ],
-});
+}, { timestamps: true });
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();

@@ -56,6 +56,7 @@ const projectSchema = new Schema(
       ref: "Workspace",
       default: null,
     }, // add-only
+
     tenantId: { type: Schema.Types.ObjectId, ref: "Tenant", default: null }, // add-only alternative
   },
   { timestamps: true }

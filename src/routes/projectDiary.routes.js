@@ -21,6 +21,7 @@ import {
     createProjectDiary,
     getAllProjectDiaries,
     getProjectDiaryById,
+    getProjectDiaryByProjectId,
     deleteProjectDiary,
     updateDiaryStatus,
     updateDiaryPriority,
@@ -48,6 +49,13 @@ const router = Router();
 router.use(verifyJWT);
 
 // --- Core Routes ---
+router.get(
+    "/project/:projectId",
+    mongoIdPathVariableValidator("projectId"),
+    validate,
+    getProjectDiaryByProjectId
+);
+
 router
     .route("/")
     .post(

@@ -4,6 +4,31 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 // --- Project Diary Core ---
+import mongoose from "mongoose";
+
+export const getProjectDiaryByProjectId = asyncHandler(async (req, res) => {
+    const { projectId } = req.params;
+    
+    let projectDiary = await ProjectDiary.findOne({ projectId, createdBy: req.user._id });
+    
+    if (!projectDiary) {
+        const Project = mongoose.model("Project");
+        const project = await Project.findById(projectId);
+        if (!project) throw new ApiError(404, "Project not found");
+
+        projectDiary = await ProjectDiary.create({
+            title: project.name,
+            description: "Diary for " + project.name,
+            projectId: project._id,
+            createdBy: req.user._id,
+            companyId: req.user.companyId || null,
+        });
+    }
+
+    return res.status(200).json(
+        new ApiResponse(200, { projectDiary }, "Project Diary fetched successfully")
+    );
+});
 
 export const createProjectDiary = asyncHandler(async (req, res) => {
     const {
@@ -53,12 +78,21 @@ export const createProjectDiary = asyncHandler(async (req, res) => {
 });
 
 export const getAllProjectDiaries = asyncHandler(async (req, res) => {
-    const { status, priority, sortBy = "createdAt", order = "desc", page = 1, limit = 10 } = req.query;
+    const {
+        status,
+        priority,
+        projectId,
+        sortBy = "createdAt",
+        order = "desc",
+        page = 1,
+        limit = 10
+    } = req.query;
 
     // Scope all results to the logged-in user, using new indexed fields
     const query = { createdBy: req.user._id };
     if (status) query.status = status;
     if (priority) query.priority = priority;
+    if (projectId) query.projectId = projectId;
 
     const pageNumber = parseInt(page, 10);
     const limitNumber = parseInt(limit, 10);
