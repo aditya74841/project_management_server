@@ -1,4 +1,5 @@
 import { ProjectDiary } from "../models/projectDiary.model.js";
+import { Project } from "../models/projects.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -8,9 +9,9 @@ import mongoose from "mongoose";
 
 export const getProjectDiaryByProjectId = asyncHandler(async (req, res) => {
     const { projectId } = req.params;
-    
+
     let projectDiary = await ProjectDiary.findOne({ projectId, createdBy: req.user._id });
-    
+
     if (!projectDiary) {
         const Project = mongoose.model("Project");
         const project = await Project.findById(projectId);
@@ -30,19 +31,28 @@ export const getProjectDiaryByProjectId = asyncHandler(async (req, res) => {
     );
 });
 
+
+// Create Project Diary
+// Get Project Diary
+// Get All Project Diaries
+// Update Project Diaries
+// Delete Project Diaries
+
+
 export const createProjectDiary = asyncHandler(async (req, res) => {
+
+    const { projectId } = req.params;
+
+    const project = await Project.findById(projectId)
+
+    if (!project) {
+        throw new ApiError(404, "Project  not found");
+    }
     const {
         title,
         description,
         status,
         priority,
-        questions,
-        userFlow,
-        features,
-        tags,
-        referenceLinks,
-        techStack,
-        projectId,
     } = req.body;
 
     if (!title) {
@@ -54,16 +64,8 @@ export const createProjectDiary = asyncHandler(async (req, res) => {
         description,
         status,
         priority,
-        questions,
-        userFlow,
-        features,
-        tags,
-        referenceLinks,
-        techStack,
         projectId: projectId || null,
-        // Auto-populate ownership from the verified JWT token
         createdBy: req.user._id,
-        companyId: req.user.companyId || null,
     });
 
     return res
@@ -78,6 +80,7 @@ export const createProjectDiary = asyncHandler(async (req, res) => {
 });
 
 export const getAllProjectDiaries = asyncHandler(async (req, res) => {
+
     const {
         status,
         priority,
@@ -88,10 +91,13 @@ export const getAllProjectDiaries = asyncHandler(async (req, res) => {
         limit = 10
     } = req.query;
 
+
+
     // Scope all results to the logged-in user, using new indexed fields
-    const query = { createdBy: req.user._id };
-    if (status) query.status = status;
-    if (priority) query.priority = priority;
+    // const query = { createdBy: req.user._id };
+    const query = {}
+    // if (status) query.status = status;
+    // if (priority) query.priority = priority;
     if (projectId) query.projectId = projectId;
 
     const pageNumber = parseInt(page, 10);
@@ -103,6 +109,8 @@ export const getAllProjectDiaries = asyncHandler(async (req, res) => {
         .skip(skip)
         .limit(limitNumber);
 
+
+    console.log("The Project Diaries is", projectDiaries)
     const total = await ProjectDiary.countDocuments(query);
 
     return res
@@ -140,6 +148,35 @@ export const getProjectDiaryById = asyncHandler(async (req, res) => {
         );
 });
 
+export const updateProjectDiary = asyncHandler(async (req, res) => {
+    const { diaryId } = req.params;
+    const { title, description } = req.body;
+    let projectDiary = await ProjectDiary.findById(diaryId);
+    if (!projectDiary) {
+        throw new ApiError(404, "Project Diary not found");
+    }
+
+    if (typeof title === "string" && title.trim()) {
+        projectDiary.title = title.trim();
+    }
+
+    if (typeof description === "string") {
+        projectDiary.description = description.trim();
+    }
+
+
+    await projectDiary.save();
+
+    projectDiary = await ProjectDiary.findById(diaryId)
+        .populate("createdBy", "name email")
+    // .populate("members.userId", "name email");
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, { projectDiary }, "Project Diary updated successfully"));
+});
+
+
 export const deleteProjectDiary = asyncHandler(async (req, res) => {
     const { diaryId } = req.params;
     const projectDiary = await ProjectDiary.findByIdAndDelete(diaryId);
@@ -157,12 +194,11 @@ export const updateDiaryStatus = asyncHandler(async (req, res) => {
     const { status } = req.body;
 
     if (!status) throw new ApiError(400, "Status is required");
-
-    // Validate status in route validation or rely on mongoose enum throw (cleaner to catch here if needed)
+    let modifiedStatus = status?.toLowerCase();    // Validate status in route validation or rely on mongoose enum throw (cleaner to catch here if needed)
 
     const projectDiary = await ProjectDiary.findByIdAndUpdate(
         diaryId,
-        { status },
+        { status: modifiedStatus },
         { new: true, runValidators: true }
     );
     if (!projectDiary) throw new ApiError(404, "Project Diary not found");
@@ -175,10 +211,11 @@ export const updateDiaryPriority = asyncHandler(async (req, res) => {
     const { priority } = req.body;
 
     if (!priority) throw new ApiError(400, "Priority is required");
+    let modifiedPriority = priority?.toLowerCase();    // Validate status in route validation or rely on mongoose enum throw (cleaner to catch here if needed)
 
     const projectDiary = await ProjectDiary.findByIdAndUpdate(
         diaryId,
-        { priority },
+        { priority: modifiedPriority },
         { new: true, runValidators: true }
     );
     if (!projectDiary) throw new ApiError(404, "Project Diary not found");
@@ -246,6 +283,100 @@ export const removeUserFlow = asyncHandler(async (req, res) => {
     if (!projectDiary) throw new ApiError(404, "Project Diary not found");
 
     return res.status(200).json(new ApiResponse(200, { projectDiary }, "User flow removed successfully"));
+});
+
+// --- Ideas ---
+
+export const addIdea = asyncHandler(async (req, res) => {
+    const { diaryId } = req.params;
+    const { idea } = req.body;
+
+    if (!idea) throw new ApiError(400, "Idea text is required");
+
+    const projectDiary = await ProjectDiary.findByIdAndUpdate(
+        diaryId,
+        { $push: { ideas: { idea } } },
+        { new: true, runValidators: true }
+    );
+    if (!projectDiary) throw new ApiError(404, "Project Diary not found");
+
+    return res.status(200).json(new ApiResponse(200, { projectDiary }, "Idea added successfully"));
+});
+
+export const removeIdea = asyncHandler(async (req, res) => {
+    const { diaryId, ideaId } = req.params;
+
+    const projectDiary = await ProjectDiary.findByIdAndUpdate(
+        diaryId,
+        { $pull: { ideas: { _id: ideaId } } },
+        { new: true }
+    );
+    if (!projectDiary) throw new ApiError(404, "Project Diary not found");
+
+    return res.status(200).json(new ApiResponse(200, { projectDiary }, "Idea removed successfully"));
+});
+
+export const updateIdea = asyncHandler(async (req, res) => {
+    const { diaryId, ideaId } = req.params;
+    const { idea } = req.body;
+
+    if (!idea) throw new ApiError(400, "Idea text is required");
+
+    const projectDiary = await ProjectDiary.findOneAndUpdate(
+        { _id: diaryId, "ideas._id": ideaId },
+        { $set: { "ideas.$.idea": idea } },
+        { new: true, runValidators: true }
+    );
+    if (!projectDiary) throw new ApiError(404, "Project Diary or Idea not found");
+
+    return res.status(200).json(new ApiResponse(200, { projectDiary }, "Idea updated successfully"));
+});
+
+// --- Project Updates ---
+
+export const addProjectUpdate = asyncHandler(async (req, res) => {
+    const { diaryId } = req.params;
+    const { update } = req.body;
+
+    if (!update) throw new ApiError(400, "Update text is required");
+
+    const projectDiary = await ProjectDiary.findByIdAndUpdate(
+        diaryId,
+        { $push: { projectUpdate: { update } } },
+        { new: true, runValidators: true }
+    );
+    if (!projectDiary) throw new ApiError(404, "Project Diary not found");
+
+    return res.status(200).json(new ApiResponse(200, { projectDiary }, "Project update added successfully"));
+});
+
+export const removeProjectUpdate = asyncHandler(async (req, res) => {
+    const { diaryId, updateId } = req.params;
+
+    const projectDiary = await ProjectDiary.findByIdAndUpdate(
+        diaryId,
+        { $pull: { projectUpdate: { _id: updateId } } },
+        { new: true }
+    );
+    if (!projectDiary) throw new ApiError(404, "Project Diary not found");
+
+    return res.status(200).json(new ApiResponse(200, { projectDiary }, "Project update removed successfully"));
+});
+
+export const updateProjectUpdate = asyncHandler(async (req, res) => {
+    const { diaryId, updateId } = req.params;
+    const { update } = req.body;
+
+    if (!update) throw new ApiError(400, "Update text is required");
+
+    const projectDiary = await ProjectDiary.findOneAndUpdate(
+        { _id: diaryId, "projectUpdate._id": updateId },
+        { $set: { "projectUpdate.$.update": update } },
+        { new: true, runValidators: true }
+    );
+    if (!projectDiary) throw new ApiError(404, "Project Diary or Update not found");
+
+    return res.status(200).json(new ApiResponse(200, { projectDiary }, "Project update updated successfully"));
 });
 
 // --- Features ---

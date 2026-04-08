@@ -24,6 +24,7 @@ import {
   assignFeatureToProject,
   unassignFeatureFromProject,
   getProject,
+  changeProjectStatus,
 } from "../controllers/projects.controller.js";
 import { mongoIdPathVariableValidator } from "../validators/common/mongodb.validators.js";
 import { get } from "mongoose";
@@ -35,7 +36,7 @@ router
   .route("/")
   .post(
     verifyJWT,
-    verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN,UserRolesEnum.USER]),
+    verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN, UserRolesEnum.USER]),
     projectCreateValidator(),
     validate,
     createProject
@@ -47,7 +48,7 @@ router
   .get(verifyJWT, mongoIdPathVariableValidator("projectId"), getProjectById)
   .patch(
     verifyJWT,
-    verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN,UserRolesEnum.USER]),
+    verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN, UserRolesEnum.USER]),
     projectUpdateValidator(),
     validate,
     mongoIdPathVariableValidator("projectId"),
@@ -55,7 +56,7 @@ router
   )
   .delete(
     verifyJWT,
-    verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN,UserRolesEnum.USER]),
+    verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN, UserRolesEnum.USER]),
     mongoIdPathVariableValidator("projectId"),
     deleteProject
   );
@@ -67,7 +68,12 @@ router.patch(
   mongoIdPathVariableValidator("projectId"),
   toggleProjectVisibility
 );
-
+router.patch(
+  "/:projectId/change-status",
+  verifyJWT,
+  mongoIdPathVariableValidator("projectId"),
+  changeProjectStatus
+);
 // Members management
 router.post(
   "/:projectId/members",

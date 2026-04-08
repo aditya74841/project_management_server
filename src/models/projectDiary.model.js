@@ -37,6 +37,7 @@ const diaryFeatureSchema = new Schema(
             enum: ["musthave", "nicetohave"],
             default: "musthave",
         },
+        update: [{ type: String, trim: true }],
         status: {
             type: String,
             enum: ["pending", "in-progress", "completed"],
@@ -56,7 +57,7 @@ const referenceLinkSchema = new Schema(
             match: [/^https?:\/\/.+/, "Please enter a valid HTTP/HTTPS URL"],
         },
     },
-    { _id: false }
+    { _id: true }
 );
 
 // ─── Main Schema ──────────────────────────────────────────────────────────────
@@ -117,6 +118,24 @@ const projectDiarySchema = new Schema(
                 flow: {
                     type: String,
                     required: true,
+                    trim: true,
+                },
+            },
+        ],
+        ideas: [
+            {
+                idea: {
+                    type: String,
+                    // required: true,
+                    trim: true,
+                },
+            },
+        ],
+        projectUpdate: [
+            {
+                update: {
+                    type: String,
+                    // required: true,
                     trim: true,
                 },
             },

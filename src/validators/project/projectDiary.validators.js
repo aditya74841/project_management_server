@@ -11,13 +11,6 @@ export const createProjectDiaryValidator = () => {
             .optional()
             .isIn(["low", "medium", "high"])
             .withMessage("Invalid priority"),
-        body("projectId")
-            .optional()
-            .isMongoId()
-            .withMessage("projectId must be a valid MongoDB ObjectId"),
-        body("questions").optional().isArray().withMessage("Questions must be an array"),
-        body("userFlow").optional().isArray().withMessage("User flow must be an array"),
-        body("features").optional().isArray().withMessage("Features must be an array"),
     ];
 };
 
@@ -26,6 +19,13 @@ export const updateStatusValidator = () => {
         body("status")
             .notEmpty()
             .withMessage("Status is required")
+
+            // 🔧 Normalize input → lowercase
+            .customSanitizer((value) => {
+                return typeof value === "string" ? value.toLowerCase() : value;
+            })
+
+            // ✅ Validate against allowed values
             .isIn(["idea", "scoping", "in-progress", "completed", "archived"])
             .withMessage("Invalid status"),
     ];
@@ -34,8 +34,12 @@ export const updateStatusValidator = () => {
 export const updatePriorityValidator = () => {
     return [
         body("priority")
+            .isString()
+            .withMessage("Priority must be a string")
+            .bail()
             .notEmpty()
             .withMessage("Priority is required")
+            .customSanitizer((value) => value.toLowerCase())
             .isIn(["low", "medium", "high"])
             .withMessage("Invalid priority"),
     ];
@@ -112,6 +116,30 @@ export const addLinkValidator = () => {
 export const addTechStackValidator = () => {
     return [
         body("tech").notEmpty().withMessage("Tech name is required").trim(),
+    ];
+};
+
+export const addIdeaValidator = () => {
+    return [
+        body("idea").notEmpty().withMessage("Idea text is required").trim(),
+    ];
+};
+
+export const updateIdeaValidator = () => {
+    return [
+        body("idea").notEmpty().withMessage("Idea text is required").trim(),
+    ];
+};
+
+export const addProjectUpdateValidator = () => {
+    return [
+        body("update").notEmpty().withMessage("Update text is required").trim(),
+    ];
+};
+
+export const updateProjectUpdateValidator = () => {
+    return [
+        body("update").notEmpty().withMessage("Update text is required").trim(),
     ];
 };
 

@@ -90,10 +90,88 @@ const addCommentValidator = () => {
   ];
 };
 
+const changePriorityValidator = () => {
+  return [
+    body("priority")
+      .notEmpty()
+      .withMessage("Priority is required")
+      .isIn(AvailableFeaturePriority)
+      .withMessage("Invalid priority value"),
+  ];
+};
+
+const changeStatusValidator = () => {
+  return [
+    body("status")
+      .notEmpty()
+      .withMessage("Status is required")
+      .isIn(AvailableFeatureStatus)
+      .withMessage("Invalid status value"),
+  ];
+};
+
+const changeDeadlineValidator = () => {
+  return [
+    body("deadline")
+      .optional({ nullable: true })
+      .isISO8601()
+      .toDate()
+      .withMessage("Deadline must be a valid date"),
+  ];
+};
+
+const updateCommentValidator = () => {
+  return [
+    body("text").trim().notEmpty().withMessage("Comment text is required"),
+  ];
+};
+
+const createQuestionValidator = () => {
+  return [
+    body("name").trim().notEmpty().withMessage("Question name is required"),
+    body("answer").optional().trim(),
+  ];
+};
+
+const updateQuestionValidator = () => {
+  return [
+    body("name").optional().trim().notEmpty().withMessage("Name cannot be empty"),
+    body("answer").optional().trim(),
+  ];
+};
+
+const tagsValidator = () => {
+  return [
+    body("tag")
+      .isString()
+      .trim()
+      .notEmpty()
+      .withMessage("Tag must be a non-empty string"),
+  ];
+};
+
+const workflowValidator = () => {
+  return [
+    body("flow")
+      .isString()
+      .trim()
+      .notEmpty()
+      .withMessage("Flow text is required"),
+  ];
+};
+
 export {
   featureCreateValidator,
   featureUpdateValidator,
   assignUsersValidator,
   removeUserValidator,
   addCommentValidator,
+  changePriorityValidator,
+  changeStatusValidator,
+  changeDeadlineValidator,
+  updateCommentValidator,
+  createQuestionValidator,
+  updateQuestionValidator,
+  tagsValidator,
+  workflowValidator,
 };

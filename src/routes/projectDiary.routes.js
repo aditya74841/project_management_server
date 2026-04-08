@@ -15,7 +15,11 @@ import {
     updateFeatureStatusValidator,
     addTagValidator,
     addLinkValidator,
-    addTechStackValidator
+    addTechStackValidator,
+    addIdeaValidator,
+    updateIdeaValidator,
+    addProjectUpdateValidator,
+    updateProjectUpdateValidator
 } from "../validators/project/projectDiary.validators.js";
 import {
     createProjectDiary,
@@ -40,7 +44,14 @@ import {
     addReferenceLink,
     removeReferenceLink,
     addTechStack,
-    removeTechStack
+    removeTechStack,
+    updateProjectDiary,
+    addIdea,
+    removeIdea,
+    updateIdea,
+    addProjectUpdate,
+    removeProjectUpdate,
+    updateProjectUpdate
 } from "../controllers/projectDiary.controller.js";
 
 const router = Router();
@@ -49,25 +60,29 @@ const router = Router();
 router.use(verifyJWT);
 
 // --- Core Routes ---
+
+router.route("/getProjectDiary")
+    .get(
+        getAllDiaryValidator(),
+        validate,
+        getAllProjectDiaries
+    );
+
 router.get(
-    "/project/:projectId",
+    "/projectDiary/:projectId",
     mongoIdPathVariableValidator("projectId"),
     validate,
     getProjectDiaryByProjectId
 );
 
 router
-    .route("/")
+    .route("/:projectId")
     .post(
         createProjectDiaryValidator(),
         validate,
         createProjectDiary
     )
-    .get(
-        getAllDiaryValidator(),
-        validate,
-        getAllProjectDiaries
-    );
+
 
 router
     .route("/:diaryId")
@@ -75,6 +90,11 @@ router
         mongoIdPathVariableValidator("diaryId"),
         validate,
         getProjectDiaryById
+    )
+    .patch(
+        mongoIdPathVariableValidator("diaryId"),
+        validate,
+        updateProjectDiary
     )
     .delete(
         mongoIdPathVariableValidator("diaryId"),
@@ -131,6 +151,58 @@ router.delete(
     mongoIdPathVariableValidator("flowId"),
     validate,
     removeUserFlow
+);
+
+// --- Ideas ---
+router.post(
+    "/:diaryId/ideas",
+    mongoIdPathVariableValidator("diaryId"),
+    addIdeaValidator(),
+    validate,
+    addIdea
+);
+
+router.delete(
+    "/:diaryId/ideas/:ideaId",
+    mongoIdPathVariableValidator("diaryId"),
+    mongoIdPathVariableValidator("ideaId"),
+    validate,
+    removeIdea
+);
+
+router.patch(
+    "/:diaryId/ideas/:ideaId",
+    mongoIdPathVariableValidator("diaryId"),
+    mongoIdPathVariableValidator("ideaId"),
+    updateIdeaValidator(),
+    validate,
+    updateIdea
+);
+
+// --- Project Updates ---
+router.post(
+    "/:diaryId/project-updates",
+    mongoIdPathVariableValidator("diaryId"),
+    addProjectUpdateValidator(),
+    validate,
+    addProjectUpdate
+);
+
+router.delete(
+    "/:diaryId/project-updates/:updateId",
+    mongoIdPathVariableValidator("diaryId"),
+    mongoIdPathVariableValidator("updateId"),
+    validate,
+    removeProjectUpdate
+);
+
+router.patch(
+    "/:diaryId/project-updates/:updateId",
+    mongoIdPathVariableValidator("diaryId"),
+    mongoIdPathVariableValidator("updateId"),
+    updateProjectUpdateValidator(),
+    validate,
+    updateProjectUpdate
 );
 
 // --- Features ---

@@ -7,6 +7,17 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
+
+// Create Project
+// Get Project
+// Get Project By Id
+// Update Project
+// Delete Project
+// Modify the  Status
+// Toggle visibility
+
+
+
 export const createProject = asyncHandler(async (req, res) => {
   const {
     name,
@@ -266,6 +277,27 @@ export const toggleProjectVisibility = asyncHandler(async (req, res) => {
         200,
         { isShown: project.isShown },
         "Project visibility toggled"
+      )
+    );
+});
+export const changeProjectStatus = asyncHandler(async (req, res) => {
+  const { projectId } = req.params;
+  const {
+    status = "draft",
+  } = req.body;
+  const project = await Project.findById(projectId);
+  if (!project) throw new ApiError(404, "Project not found");
+
+  project.status = status;
+  await project.save();
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { status: project.status },
+        "Project status changed"
       )
     );
 });

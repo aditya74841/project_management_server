@@ -1,5 +1,23 @@
 import mongoose, { Schema } from "mongoose";
-
+const questionSchema = new Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    answer: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    isCompleted: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  { _id: true, timestamps: true }
+);
 const featureSchema = new Schema(
   {
     title: {
@@ -12,6 +30,21 @@ const featureSchema = new Schema(
       default: "",
       trim: true,
     },
+    benefits: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    questions: [questionSchema],
+    workFlow: [
+      {
+        flow: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+      },
+    ],
     status: {
       type: String,
       enum: ["pending", "working", "completed", "blocked"],
@@ -80,7 +113,7 @@ const featureSchema = new Schema(
 featureSchema.index({ projectId: 1, status: 1 });
 
 
-featureSchema.pre('deleteOne', { document: true, query: false }, async function() {
+featureSchema.pre('deleteOne', { document: true, query: false }, async function () {
   await mongoose.model('Project').updateMany(
     { features: this._id },
     { $pull: { features: this._id } }
