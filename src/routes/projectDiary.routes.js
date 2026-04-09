@@ -8,13 +8,16 @@ import {
     updateStatusValidator,
     updatePriorityValidator,
     addQuestionValidator,
+    updateQuestionValidator,
     addUserFlowValidator,
+    updateUserFlowValidator,
     addFeatureValidator,
     updateFeatureDetailsValidator,
     updateFeaturePriorityValidator,
     updateFeatureStatusValidator,
     addTagValidator,
     addLinkValidator,
+    updateLinkValidator,
     addTechStackValidator,
     addIdeaValidator,
     updateIdeaValidator,
@@ -31,8 +34,10 @@ import {
     updateDiaryPriority,
     addQuestion,
     removeQuestion,
+    updateQuestion,
     addUserFlow,
     removeUserFlow,
+    updateUserFlow,
     addFeature,
     removeFeature,
     updateFeatureDetails,
@@ -43,6 +48,7 @@ import {
     removeTag,
     addReferenceLink,
     removeReferenceLink,
+    updateReferenceLink,
     addTechStack,
     removeTechStack,
     updateProjectDiary,
@@ -136,6 +142,15 @@ router.delete(
     removeQuestion
 );
 
+router.patch(
+    "/:diaryId/questions/:questionId",
+    mongoIdPathVariableValidator("diaryId"),
+    mongoIdPathVariableValidator("questionId"),
+    updateQuestionValidator(),
+    validate,
+    updateQuestion
+);
+
 // --- User Flows ---
 router.post(
     "/:diaryId/user-flows",
@@ -151,6 +166,15 @@ router.delete(
     mongoIdPathVariableValidator("flowId"),
     validate,
     removeUserFlow
+);
+
+router.patch(
+    "/:diaryId/user-flows/:flowId",
+    mongoIdPathVariableValidator("diaryId"),
+    mongoIdPathVariableValidator("flowId"),
+    updateUserFlowValidator(),
+    validate,
+    updateUserFlow
 );
 
 // --- Ideas ---
@@ -289,6 +313,15 @@ router.delete(
     mongoIdPathVariableValidator("linkId"),
     validate,
     removeReferenceLink
+);
+
+router.patch(
+    "/:diaryId/links/:linkId",
+    mongoIdPathVariableValidator("diaryId"),
+    mongoIdPathVariableValidator("linkId"),
+    updateLinkValidator(),
+    validate,
+    updateReferenceLink
 );
 
 // --- Tech Stack ---

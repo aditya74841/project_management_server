@@ -58,6 +58,19 @@ export const addUserFlowValidator = () => {
     ];
 };
 
+export const updateQuestionValidator = () => {
+    return [
+        body("name").optional().trim().notEmpty().withMessage("Question name cannot be empty"),
+        body("answer").optional().trim(),
+    ];
+};
+
+export const updateUserFlowValidator = () => {
+    return [
+        body("flow").notEmpty().withMessage("Flow text is required").trim(),
+    ];
+};
+
 export const addFeatureValidator = () => {
     return [
         body("name").notEmpty().withMessage("Feature name is required").trim(),
@@ -110,6 +123,13 @@ export const addLinkValidator = () => {
     return [
         body("name").notEmpty().withMessage("Link name is required").trim(),
         body("url").notEmpty().withMessage("URL is required").isURL().withMessage("Invalid URL"),
+    ];
+};
+
+export const updateLinkValidator = () => {
+    return [
+        body("name").optional().trim().notEmpty().withMessage("Link name cannot be empty"),
+        body("url").optional().trim().isURL().withMessage("Invalid URL"),
     ];
 };
 

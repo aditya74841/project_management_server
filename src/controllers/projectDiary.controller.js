@@ -9,8 +9,8 @@ import mongoose from "mongoose";
 
 export const getProjectDiaryByProjectId = asyncHandler(async (req, res) => {
     const { projectId } = req.params;
-
-    let projectDiary = await ProjectDiary.findOne({ projectId, createdBy: req.user._id });
+    //  createdBy: req.user._id
+    let projectDiary = await ProjectDiary.findOne({ projectId, });
 
     if (!projectDiary) {
         const Project = mongoose.model("Project");
@@ -254,6 +254,24 @@ export const removeQuestion = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, { projectDiary }, "Question removed successfully"));
 });
 
+export const updateQuestion = asyncHandler(async (req, res) => {
+    const { diaryId, questionId } = req.params;
+    const { name, answer } = req.body;
+
+    const updateFields = {};
+    if (name !== undefined) updateFields["questions.$.name"] = name;
+    if (answer !== undefined) updateFields["questions.$.answer"] = answer;
+
+    const projectDiary = await ProjectDiary.findOneAndUpdate(
+        { _id: diaryId, "questions._id": questionId },
+        { $set: updateFields },
+        { new: true, runValidators: true }
+    );
+    if (!projectDiary) throw new ApiError(404, "Project Diary or Question not found");
+
+    return res.status(200).json(new ApiResponse(200, { projectDiary }, "Question updated successfully"));
+});
+
 // --- User Flow ---
 
 export const addUserFlow = asyncHandler(async (req, res) => {
@@ -283,6 +301,22 @@ export const removeUserFlow = asyncHandler(async (req, res) => {
     if (!projectDiary) throw new ApiError(404, "Project Diary not found");
 
     return res.status(200).json(new ApiResponse(200, { projectDiary }, "User flow removed successfully"));
+});
+
+export const updateUserFlow = asyncHandler(async (req, res) => {
+    const { diaryId, flowId } = req.params;
+    const { flow } = req.body;
+
+    if (!flow) throw new ApiError(400, "Flow text is required");
+
+    const projectDiary = await ProjectDiary.findOneAndUpdate(
+        { _id: diaryId, "userFlow._id": flowId },
+        { $set: { "userFlow.$.flow": flow } },
+        { new: true, runValidators: true }
+    );
+    if (!projectDiary) throw new ApiError(404, "Project Diary or User Flow not found");
+
+    return res.status(200).json(new ApiResponse(200, { projectDiary }, "User flow updated successfully"));
 });
 
 // --- Ideas ---
@@ -541,6 +575,24 @@ export const removeReferenceLink = asyncHandler(async (req, res) => {
     if (!projectDiary) throw new ApiError(404, "Project Diary not found");
 
     return res.status(200).json(new ApiResponse(200, { projectDiary }, "Reference link removed successfully"));
+});
+
+export const updateReferenceLink = asyncHandler(async (req, res) => {
+    const { diaryId, linkId } = req.params;
+    const { name, url } = req.body;
+
+    const updateFields = {};
+    if (name !== undefined) updateFields["referenceLinks.$.name"] = name;
+    if (url !== undefined) updateFields["referenceLinks.$.url"] = url;
+
+    const projectDiary = await ProjectDiary.findOneAndUpdate(
+        { _id: diaryId, "referenceLinks._id": linkId },
+        { $set: updateFields },
+        { new: true, runValidators: true }
+    );
+    if (!projectDiary) throw new ApiError(404, "Project Diary or Reference Link not found");
+
+    return res.status(200).json(new ApiResponse(200, { projectDiary }, "Reference link updated successfully"));
 });
 
 // --- Tech Stack ---

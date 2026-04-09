@@ -103,7 +103,11 @@ export const updateFeature = asyncHandler(async (req, res) => {
   feature.description = description || feature.description;
   feature.deadline = deadline || feature.deadline;
   feature.benefits = benefits || feature.benefits;
-
+  if (req.body.priority) feature.priority = req.body.priority;
+  if (req.body.status) {
+    feature.status = req.body.status;
+    feature.isCompleted = req.body.status === "completed";
+  }
 
   await feature.save();
 

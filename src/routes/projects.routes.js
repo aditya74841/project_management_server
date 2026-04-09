@@ -27,7 +27,6 @@ import {
   changeProjectStatus,
 } from "../controllers/projects.controller.js";
 import { mongoIdPathVariableValidator } from "../validators/common/mongodb.validators.js";
-import { get } from "mongoose";
 
 const router = Router();
 
