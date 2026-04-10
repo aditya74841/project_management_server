@@ -1,4 +1,3 @@
-
 import mongoose, { Schema } from "mongoose";
 
 const projectSchema = new Schema(
@@ -13,22 +12,6 @@ const projectSchema = new Schema(
       default: "",
       trim: true,
     },
-    companyId: {
-      type: Schema.Types.ObjectId,
-      ref: "Company",
-      default: null,
-    },
-    createdBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-    members: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
     status: {
       type: String,
       enum: ["draft", "active", "archived", "completed"],
@@ -39,76 +22,94 @@ const projectSchema = new Schema(
       type: Date,
       default: null,
     },
-    features: [
+    tags: [{ type: String, trim: true }],
+    techStack: [{ type: String, trim: true }],
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    members: [
       {
         type: Schema.Types.ObjectId,
-        ref: "Feature",
+        ref: "User",
       },
     ],
-
-    isShown: {
-      type: Boolean,
-      default: false,
-    },
-    owner: { type: Schema.Types.ObjectId, ref: "User", default: null }, // add-only; fill later
-    workspaceId: {
+    companyId: {
       type: Schema.Types.ObjectId,
-      ref: "Workspace",
+      ref: "Company",
       default: null,
-    }, // add-only
+    },
 
-    tenantId: { type: Schema.Types.ObjectId, ref: "Tenant", default: null }, // add-only alternative
+    // ── SaaS fields — uncomment when ready ───────────────────────────────────
+    // workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace", default: null },
+    // tenantId:    { type: Schema.Types.ObjectId, ref: "Tenant",    default: null },
   },
   { timestamps: true }
 );
 
-// Ensure unique project names per company
-projectSchema.index({ name: 1, companyId: 1 }, { unique: true });
+// ─── Indexes ──────────────────────────────────────────────────────────────────
 
-// projectSchema.index(
-//   { owner: 1, name: 1 }, 
-//   { unique: true, partialFilterExpression: { owner: { $exists: true } } }
-// );
-// projectSchema.index(
-//   { workspaceId: 1, name: 1 }, 
-//   { unique: true, partialFilterExpression: { workspaceId: { $exists: true } } }
-// );
+// Unique project name per user
+projectSchema.index({ name: 1, createdBy: 1 }, { unique: true });
 
+// Fast lookup: all projects for a user filtered by status
+projectSchema.index({ createdBy: 1, status: 1 });
 
+// ─── Cascade Delete ───────────────────────────────────────────────────────────
+// When a project is deleted, remove all associated Features, ProjectDiaries,
+// and Comments linked to those features
 
-
-// Add this middleware to your project schema
-projectSchema.pre('deleteOne', { document: true, query: false }, async function (next) {
+projectSchema.pre("deleteOne", { document: true, query: false }, async function (next) {
   try {
-    // Delete all features associated with this project
-    const Feature = mongoose.model('Feature');
-    const result = await Feature.deleteMany({ projectId: this._id });
-    console.log(`Deleted ${result.deletedCount} features for project ${this._id}`);
+    const Feature = mongoose.model("Feature");
+    const ProjectDiary = mongoose.model("ProjectDiary");
+    const Comment = mongoose.model("Comment");
+
+    // Get all feature IDs for this project to cascade-delete their comments
+    const features = await Feature.find({ projectId: this._id }).select("_id");
+    const featureIds = features.map((f) => f._id);
+
+    if (featureIds.length > 0) {
+      await Comment.deleteMany({ featureId: { $in: featureIds } });
+    }
+
+    await Feature.deleteMany({ projectId: this._id });
+    await ProjectDiary.deleteMany({ projectId: this._id });
+
     next();
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    next(err);
   }
 });
 
-// Also handle findByIdAndDelete and findOneAndDelete
-projectSchema.pre(['findOneAndDelete', 'deleteMany'], async function (next) {
+// Also handle findOneAndDelete and findByIdAndDelete
+projectSchema.pre(["findOneAndDelete", "deleteMany"], async function (next) {
   try {
-    const Feature = mongoose.model('Feature');
+    const Feature = mongoose.model("Feature");
+    const ProjectDiary = mongoose.model("ProjectDiary");
+    const Comment = mongoose.model("Comment");
 
-    // Get the project ID(s) being deleted
-    const projectsToDelete = await this.model.find(this.getQuery()).select('_id');
-    const projectIds = projectsToDelete.map(p => p._id);
+    const projectsToDelete = await this.model.find(this.getQuery()).select("_id");
+    const projectIds = projectsToDelete.map((p) => p._id);
 
     if (projectIds.length > 0) {
-      const result = await Feature.deleteMany({ projectId: { $in: projectIds } });
-      console.log(`Deleted ${result.deletedCount} features for ${projectIds.length} projects`);
+      // Get all feature IDs across these projects
+      const features = await Feature.find({ projectId: { $in: projectIds } }).select("_id");
+      const featureIds = features.map((f) => f._id);
+
+      if (featureIds.length > 0) {
+        await Comment.deleteMany({ featureId: { $in: featureIds } });
+      }
+
+      await Feature.deleteMany({ projectId: { $in: projectIds } });
+      await ProjectDiary.deleteMany({ projectId: { $in: projectIds } });
     }
 
     next();
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    next(err);
   }
 });
+
 export const Project = mongoose.model("Project", projectSchema);
-
-

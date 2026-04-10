@@ -1,4 +1,4 @@
-import { body, param } from "express-validator";
+import { body } from "express-validator";
 
 const AvailableFeatureStatus = ["pending", "working", "completed", "blocked"];
 const AvailableFeaturePriority = ["low", "medium", "high", "urgent"];
@@ -24,6 +24,11 @@ const featureCreateValidator = () => {
       .withMessage("Project ID is required")
       .isMongoId()
       .withMessage("Invalid Project ID"),
+
+    body("diaryId")
+      .optional()
+      .isMongoId()
+      .withMessage("Invalid Diary ID"),
 
     body("deadline")
       .optional()
@@ -84,12 +89,6 @@ const removeUserValidator = () => {
   ];
 };
 
-const addCommentValidator = () => {
-  return [
-    body("text").trim().notEmpty().withMessage("Comment text is required"),
-  ];
-};
-
 const changePriorityValidator = () => {
   return [
     body("priority")
@@ -117,12 +116,6 @@ const changeDeadlineValidator = () => {
       .isISO8601()
       .toDate()
       .withMessage("Deadline must be a valid date"),
-  ];
-};
-
-const updateCommentValidator = () => {
-  return [
-    body("text").trim().notEmpty().withMessage("Comment text is required"),
   ];
 };
 
@@ -165,11 +158,9 @@ export {
   featureUpdateValidator,
   assignUsersValidator,
   removeUserValidator,
-  addCommentValidator,
   changePriorityValidator,
   changeStatusValidator,
   changeDeadlineValidator,
-  updateCommentValidator,
   createQuestionValidator,
   updateQuestionValidator,
   tagsValidator,

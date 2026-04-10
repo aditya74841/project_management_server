@@ -22,7 +22,6 @@ export const getProjectDiaryByProjectId = asyncHandler(async (req, res) => {
             description: "Diary for " + project.name,
             projectId: project._id,
             createdBy: req.user._id,
-            companyId: req.user.companyId || null,
         });
     }
 

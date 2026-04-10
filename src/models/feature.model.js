@@ -1,23 +1,6 @@
 import mongoose, { Schema } from "mongoose";
-const questionSchema = new Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    answer: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-    isCompleted: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  { _id: true, timestamps: true }
-);
+import { questionSchema } from "./shared.schemas.js";
+
 const featureSchema = new Schema(
   {
     title: {
@@ -35,97 +18,66 @@ const featureSchema = new Schema(
       default: "",
       trim: true,
     },
-    questions: [questionSchema],
-    workFlow: [
-      {
-        flow: {
-          type: String,
-          required: true,
-          trim: true,
-        },
-      },
-    ],
-    status: {
-      type: String,
-      enum: ["pending", "working", "completed", "blocked"],
-      default: "pending",
-      index: true,
-    },
-    priority: {
-      type: String,
-      enum: ["low", "medium", "high", "urgent"],
-      default: "low",
-      index: true,
-    },
+
+    // ── Ownership ─────────────────────────────────────────────────────────────
     projectId: {
       type: Schema.Types.ObjectId,
       ref: "Project",
       required: true,
+      index: true,
+    },
+    diaryId: {
+      type: Schema.Types.ObjectId,
+      ref: "ProjectDiary",
+      default: null, // null = created directly, not from a diary
     },
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
       default: null,
     },
-    assignedTo: [
-      // 👈 Multiple users can be assigned
-      {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
-    deadline: {
-      type: Date,
-      default: null,
-    },
-    tags: [String],
+    assignedTo: [{ type: Schema.Types.ObjectId, ref: "User" }],
 
-    comments: [
-      // 👈 New comments field
-      {
-        text: {
-          type: String,
-          required: true,
-          trim: true,
-        },
-        createdBy: {
-          type: Schema.Types.ObjectId,
-          ref: "User",
-          required: true,
-        },
-        createdAt: {
-          type: Date,
-          default: Date.now,
-        },
-      },
-    ],
-    isCompleted: {
-      type: Boolean,
-      default: false,
+    // ── Status ────────────────────────────────────────────────────────────────
+    status: {
+      type: String,
+      enum: ["pending", "working", "completed", "blocked"],
+      default: "pending",
     },
-    workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace", default: null }, // add-only
-    tenantId: { type: Schema.Types.ObjectId, ref: "Tenant", default: null }, // add-only alternative
+    priority: {
+      type: String,
+      enum: ["low", "medium", "high", "urgent"],
+      default: "low",
+    },
+
+    // ── Planning content ──────────────────────────────────────────────────────
+    questions: [questionSchema],
+    workflow: [{ flow: { type: String, trim: true } }],
+    deadline: { type: Date, default: null },
+    tags: [{ type: String, trim: true }],
+
+    // ── SaaS fields — uncomment when ready ───────────────────────────────────
+    // workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace", default: null },
+    // tenantId:    { type: Schema.Types.ObjectId, ref: "Tenant",    default: null },
   },
   { timestamps: true }
 );
 
-// Index for queries like "all completed features of a project"
+// ─── Indexes ──────────────────────────────────────────────────────────────────
+
 featureSchema.index({ projectId: 1, status: 1 });
+featureSchema.index({ projectId: 1, priority: 1 });
+featureSchema.index({ diaryId: 1 }); // all features spawned from a diary
 
-
-featureSchema.pre('deleteOne', { document: true, query: false }, async function () {
-  await mongoose.model('Project').updateMany(
-    { features: this._id },
-    { $pull: { features: this._id } }
-  );
+// ─── Cascade Delete ───────────────────────────────────────────────────────────
+// When a feature is deleted, remove all its comments
+featureSchema.pre("deleteOne", { document: true, query: false }, async function (next) {
+  try {
+    await mongoose.model("Comment").deleteMany({ featureId: this._id });
+    next();
+  } catch (err) {
+    next(err);
+  }
 });
 
-// featureSchema.index(
-//   { workspaceId: 1, status: 1 }, 
-//   { partialFilterExpression: { workspaceId: { $exists: true } } }
-// );
-// featureSchema.index(
-//   { tenantId: 1, status: 1 }, 
-//   { partialFilterExpression: { tenantId: { $exists: true } } }
-// );
 export const Feature = mongoose.model("Feature", featureSchema);

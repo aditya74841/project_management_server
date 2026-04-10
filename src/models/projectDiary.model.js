@@ -1,161 +1,101 @@
 import mongoose, { Schema } from "mongoose";
-
-// ─── Sub-Schemas ──────────────────────────────────────────────────────────────
-
-const questionSchema = new Schema(
-    {
-        name: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        answer: {
-            type: String,
-            default: "",
-            trim: true,
-        },
-    },
-    { _id: true, timestamps: true }
-);
-
-const diaryFeatureSchema = new Schema(
-    {
-        name: {
-            type: String,
-            required: true,
-            trim: true,
-            maxLength: 150,
-        },
-        description: {
-            type: String,
-            default: "",
-            trim: true,
-            maxLength: 1000,
-        },
-        priority: {
-            type: String,
-            enum: ["musthave", "nicetohave"],
-            default: "musthave",
-        },
-        update: [{ type: String, trim: true }],
-        status: {
-            type: String,
-            enum: ["pending", "in-progress", "completed"],
-            default: "pending",
-        },
-    },
-    { _id: true, timestamps: true }
-);
-
-const referenceLinkSchema = new Schema(
-    {
-        name: { type: String, required: true, trim: true },
-        url: {
-            type: String,
-            required: true,
-            trim: true,
-            match: [/^https?:\/\/.+/, "Please enter a valid HTTP/HTTPS URL"],
-        },
-    },
-    { _id: true }
-);
+import {
+  questionSchema,
+  referenceLinkSchema,
+  diaryFeatureSchema,
+} from "./shared.schemas.js";
 
 // ─── Main Schema ──────────────────────────────────────────────────────────────
 
 const projectDiarySchema = new Schema(
-    {
-        title: {
-            type: String,
-            required: true,
-            trim: true,
-            maxLength: 150,
-        },
-        description: {
-            type: String,
-            default: "",
-            trim: true,
-            maxLength: 2000,
-        },
-
-        // ── Ownership & Context ──────────────────────────────────────────────────
-        projectId: {
-            type: Schema.Types.ObjectId,
-            ref: "Project",
-            default: null,
-            index: true, // quickly fetch all diaries for a project
-        },
-        companyId: {
-            type: Schema.Types.ObjectId,
-            ref: "Company",
-            default: null,
-            index: true,
-        },
-        createdBy: {
-            type: Schema.Types.ObjectId,
-            ref: "User",
-            required: true,
-            index: true,
-        },
-
-        // ── Status & Workflow ────────────────────────────────────────────────────
-        status: {
-            type: String,
-            enum: ["idea", "scoping", "in-progress", "completed", "archived"],
-            default: "idea",
-            index: true,
-        },
-        priority: {
-            type: String,
-            enum: ["low", "medium", "high"],
-            default: "medium",
-        },
-
-        // ── Content ──────────────────────────────────────────────────────────────
-        questions: [questionSchema],
-
-        userFlow: [
-            {
-                flow: {
-                    type: String,
-                    required: true,
-                    trim: true,
-                },
-            },
-        ],
-        ideas: [
-            {
-                idea: {
-                    type: String,
-                    // required: true,
-                    trim: true,
-                },
-            },
-        ],
-        projectUpdate: [
-            {
-                update: {
-                    type: String,
-                    // required: true,
-                    trim: true,
-                },
-            },
-        ],
-
-        features: [diaryFeatureSchema],
-
-        // ── Metadata ─────────────────────────────────────────────────────────────
-        tags: [{ type: String, trim: true }],
-        referenceLinks: [referenceLinkSchema],
-        techStack: [{ type: String, trim: true }],
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+      maxLength: 150,
     },
-    { timestamps: true }
+    description: {
+      type: String,
+      default: "",
+      trim: true,
+      maxLength: 2000,
+    },
+
+    // ── Ownership ─────────────────────────────────────────────────────────────
+    projectId: {
+      type: Schema.Types.ObjectId,
+      ref: "Project",
+      required: true,
+      index: true,
+    },
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    // ── Status & Workflow ────────────────────────────────────────────────────
+    status: {
+      type: String,
+      enum: ["idea", "scoping", "in-progress", "completed", "archived"],
+      default: "idea",
+      index: true,
+    },
+    priority: {
+      type: String,
+      enum: ["low", "medium", "high"],
+      default: "medium",
+    },
+
+    // ── Content ──────────────────────────────────────────────────────────────
+    questions: [questionSchema],
+
+    userFlow: [
+      {
+        flow: {
+          type: String,
+          trim: true,
+        },
+      },
+    ],
+    ideas: [
+      {
+        idea: {
+          type: String,
+          trim: true,
+        },
+      },
+    ],
+    projectUpdate: [
+      {
+        update: {
+          type: String,
+          trim: true,
+        },
+      },
+    ],
+
+    features: [diaryFeatureSchema],
+
+    // ── Links to real Feature docs ────────────────────────────────────────────
+    // Populated when a diaryFeature graduates into a real Feature
+    spawnedFeatures: [{ type: Schema.Types.ObjectId, ref: "Feature" }],
+
+    // ── Metadata ──────────────────────────────────────────────────────────────
+    tags: [{ type: String, trim: true }],
+    referenceLinks: [referenceLinkSchema],
+    techStack: [{ type: String, trim: true }],
+  },
+  { timestamps: true }
 );
 
 // ─── Indexes ──────────────────────────────────────────────────────────────────
-// Fetch all diaries for a project filtered by status eficiently
+
+// Fetch all diaries for a project filtered by status
 projectDiarySchema.index({ projectId: 1, status: 1 });
 
-// Fetch all diaries for a company filtered by status eficiently
-projectDiarySchema.index({ companyId: 1, status: 1 });
+// List newest diary first
+projectDiarySchema.index({ projectId: 1, createdAt: -1 });
 
 export const ProjectDiary = mongoose.model("ProjectDiary", projectDiarySchema);

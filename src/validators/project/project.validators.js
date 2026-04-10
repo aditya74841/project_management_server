@@ -28,6 +28,16 @@ const projectCreateValidator = () => {
       .optional()
       .isArray()
       .withMessage("Members must be an array of user IDs"),
+
+    body("members.*")
+      .optional()
+      .isMongoId()
+      .withMessage("Each member must be a valid user ID"),
+
+    body("status")
+      .optional()
+      .isIn(AvailableProjectStatus)
+      .withMessage("Invalid project status"),
   ];
 };
 
@@ -67,19 +77,8 @@ const projectMemberValidator = () => {
   ];
 };
 
-const projectFeatureValidator = () => {
-  return [
-    body("featureId")
-      .notEmpty()
-      .withMessage("Feature ID is required")
-      .isMongoId()
-      .withMessage("Invalid Feature ID"),
-  ];
-};
-
 export {
   projectCreateValidator,
   projectUpdateValidator,
   projectMemberValidator,
-  projectFeatureValidator,
 };

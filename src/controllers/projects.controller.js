@@ -1,22 +1,10 @@
-
-
-
 import { Project } from "../models/projects.model.js";
 import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
-
-// Create Project
-// Get Project
-// Get Project By Id
-// Update Project
-// Delete Project
-// Modify the  Status
-// Toggle visibility
-
-
+// ── CRUD ───────────────────────────────────────────────────────────────────────
 
 export const createProject = asyncHandler(async (req, res) => {
   const {
@@ -36,7 +24,7 @@ export const createProject = asyncHandler(async (req, res) => {
   if (deadline) {
     const deadlineDate = new Date(deadline);
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Set to start of today
+    today.setHours(0, 0, 0, 0);
 
     if (isNaN(deadlineDate.getTime())) {
       throw new ApiError(400, "Invalid deadline date format");
@@ -50,7 +38,7 @@ export const createProject = asyncHandler(async (req, res) => {
   // Check if project with same name exists for this user
   const existingProject = await Project.findOne({
     name: name.trim(),
-    createdBy: req.user._id
+    createdBy: req.user._id,
   });
 
   if (existingProject) {
@@ -58,42 +46,28 @@ export const createProject = asyncHandler(async (req, res) => {
   }
 
   // Validate member IDs if provided
-  const validatedMembers = [];
   if (members.length > 0) {
     const memberUsers = await User.find({
-      _id: { $in: members }
-    }).select("_id name email");
+      _id: { $in: members },
+    }).select("_id");
 
     if (memberUsers.length !== members.length) {
       throw new ApiError(400, "One or more member IDs are invalid");
     }
-
-    validatedMembers.push(...memberUsers.map(user => ({
-      userId: user._id,
-      role: "member",
-      addedBy: req.user._id
-    })));
   }
-
-  // Creator is automatically owner
-  // validatedMembers.unshift({
-  //   userId: req.user._id,
-  //   role: "owner",
-  //   addedBy: req.user._id
-  // });
 
   const project = await Project.create({
     name: name.trim(),
     description: description?.trim() || "",
     createdBy: req.user._id,
-    members: validatedMembers,
+    members,
     deadline: deadline || null,
     status,
   });
 
   const createdProject = await Project.findById(project._id)
     .populate("createdBy", "name email")
-    .populate("members.userId", "name email role");
+    .populate("members", "name email");
 
   return res
     .status(201)
@@ -105,15 +79,16 @@ export const createProject = asyncHandler(async (req, res) => {
       )
     );
 });
+
 export const getProject = asyncHandler(async (req, res) => {
   const { status, page = 1, limit = 10, search } = req.query;
 
   // Build filter for user's projects (projects they created or are members of)
   const filter = {
     $or: [
-      { createdBy: req.user._id }, // Projects user created
-      { "members.userId": req.user._id } // Projects user is a member of
-    ]
+      { createdBy: req.user._id },
+      { members: req.user._id },
+    ],
   };
 
   // Add status filter if provided
@@ -127,26 +102,23 @@ export const getProject = asyncHandler(async (req, res) => {
     filter.$and.push({
       $or: [
         { name: { $regex: search.trim(), $options: "i" } },
-        { description: { $regex: search.trim(), $options: "i" } }
-      ]
+        { description: { $regex: search.trim(), $options: "i" } },
+      ],
     });
   }
 
   try {
-    // Query using compound index for optimal performance
     const projects = await Project.find(filter)
-      .sort({ createdAt: -1 }) // Latest first
+      .sort({ createdAt: -1 })
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit))
       .populate("createdBy", "name email")
-      .populate("members.userId", "name email role")
-      .select("-__v") // Exclude version field
-      .lean(); // Better performance for read-only data
+      .populate("members", "name email")
+      .select("-__v")
+      .lean();
 
-    // Get total count for pagination
     const total = await Project.countDocuments(filter);
 
-    // If no projects found, return empty array (not an error)
     const response = {
       projects: projects || [],
       pagination: {
@@ -155,36 +127,32 @@ export const getProject = asyncHandler(async (req, res) => {
         totalProjects: total,
         projectsPerPage: parseInt(limit),
         hasNextPage: parseInt(page) < Math.ceil(total / parseInt(limit)),
-        hasPrevPage: parseInt(page) > 1
+        hasPrevPage: parseInt(page) > 1,
       },
       filters: {
         status: status || "all",
-        search: search || ""
-      }
+        search: search || "",
+      },
     };
 
     return res.status(200).json(
       new ApiResponse(
         200,
         response,
-        `Found ${total} project${total === 1 ? '' : 's'}`
+        `Found ${total} project${total === 1 ? "" : "s"}`
       )
     );
-
   } catch (error) {
     throw new ApiError(500, "Failed to fetch projects");
   }
 });
-
 
 export const getProjectById = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
 
   const project = await Project.findById(projectId)
     .populate("createdBy", "name email")
-    .populate("members", "name email role")
-    .populate("features", "title status priority")
-  // .populate("companyId", "name email");
+    .populate("members", "name email");
 
   if (!project) {
     throw new ApiError(404, "Project not found");
@@ -226,7 +194,7 @@ export const updateProject = asyncHandler(async (req, res) => {
 
   project = await Project.findById(projectId)
     .populate("createdBy", "name email")
-    .populate("members.userId", "name email");
+    .populate("members", "name email");
 
   return res
     .status(200)
@@ -241,50 +209,24 @@ export const deleteProject = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Project not found");
   }
 
-  // Only creator can delete (or superAdmin)
-  // if (
-  //   String(project.createdBy) !== String(req.user._id) &&
-  //   req.user.role !== "SUPERADMIN"
-  // ) {
-  //   throw new ApiError(403, "You are not authorized to delete this project");
-  // }
-
-  // This will automatically trigger the pre-delete middleware
+  // This triggers cascade delete (Features, ProjectDiaries, Comments)
   await project.deleteOne();
 
   return res.status(200).json(
     new ApiResponse(
       200,
       { deletedProject: projectId },
-      "Project and all associated features deleted successfully"
+      "Project and all associated data deleted successfully"
     )
   );
 });
 
-export const toggleProjectVisibility = asyncHandler(async (req, res) => {
-  const { projectId } = req.params;
+// ── Status ─────────────────────────────────────────────────────────────────────
 
-  const project = await Project.findById(projectId);
-  if (!project) throw new ApiError(404, "Project not found");
-
-  project.isShown = !project.isShown;
-  await project.save();
-
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { isShown: project.isShown },
-        "Project visibility toggled"
-      )
-    );
-});
 export const changeProjectStatus = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
-  const {
-    status = "draft",
-  } = req.body;
+  const { status = "draft" } = req.body;
+
   const project = await Project.findById(projectId);
   if (!project) throw new ApiError(404, "Project not found");
 
@@ -302,6 +244,8 @@ export const changeProjectStatus = asyncHandler(async (req, res) => {
     );
 });
 
+// ── Members ────────────────────────────────────────────────────────────────────
+
 export const addMemberToProject = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
   const { userId } = req.body;
@@ -309,11 +253,11 @@ export const addMemberToProject = asyncHandler(async (req, res) => {
   const project = await Project.findById(projectId);
   if (!project) throw new ApiError(404, "Project not found");
 
-  if (project.members.some(m => String(m.userId) === String(userId))) {
+  if (project.members.some((m) => String(m) === String(userId))) {
     throw new ApiError(400, "User already a member of the project");
   }
 
-  project.members.push({ userId });
+  project.members.push(userId);
   await project.save();
 
   return res
@@ -335,7 +279,7 @@ export const removeMemberFromProject = asyncHandler(async (req, res) => {
   if (!project) throw new ApiError(404, "Project not found");
 
   project.members = project.members.filter(
-    (member) => String(member.userId) !== String(userId)
+    (memberId) => String(memberId) !== String(userId)
   );
 
   await project.save();
@@ -347,55 +291,6 @@ export const removeMemberFromProject = asyncHandler(async (req, res) => {
         200,
         { members: project.members },
         "Member removed successfully"
-      )
-    );
-});
-
-export const assignFeatureToProject = asyncHandler(async (req, res) => {
-  const { projectId } = req.params;
-  const { featureId } = req.body;
-
-  const project = await Project.findById(projectId);
-  if (!project) throw new ApiError(404, "Project not found");
-
-  if (project.features.includes(featureId)) {
-    throw new ApiError(400, "Feature already assigned to this project");
-  }
-
-  project.features.push(featureId);
-  await project.save();
-
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { features: project.features },
-        "Feature assigned successfully"
-      )
-    );
-});
-
-export const unassignFeatureFromProject = asyncHandler(async (req, res) => {
-  const { projectId } = req.params;
-  const { featureId } = req.body;
-
-  const project = await Project.findById(projectId);
-  if (!project) throw new ApiError(404, "Project not found");
-
-  project.features = project.features.filter(
-    (fId) => String(fId) !== String(featureId)
-  );
-
-  await project.save();
-
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { features: project.features },
-        "Feature unassigned successfully"
       )
     );
 });

@@ -1,123 +1,3 @@
-// // routes/project.routes.js
-// import { Router } from "express";
-// import { UserRolesEnum } from "../constants.js";
-// import { verifyJWT, verifyPermission } from "../middlewares/auth.middlewares.js";
-// import { validate } from "../validators/validate.js";
-// import {
-//   projectCreateValidator,
-//   projectUpdateValidator,
-//   // projectMemberValidator,
-//   projectFeatureValidator,
-//   // projectMemberRoleValidator,
-// } from "../validators/project/project.validators.js";
-// import {
-//   createProject,
-//   getProjectById,
-//   updateProject,
-//   deleteProject,
-//   toggleProjectVisibility,
-//   addMemberToProject,
-//   removeMemberFromProject,
-//   updateMemberRole,
-//   assignFeatureToProject,
-//   unassignFeatureFromProject,
-//   getProjects,
-// } from "../controllers/projects.controller.js";
-// import { mongoIdPathVariableValidator } from "../validators/common/mongodb.validators.js";
-
-// const router = Router();
-
-// // Project CRUD
-// router
-//   .route("/")
-//   .post(
-//     verifyJWT,
-//     verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN, UserRolesEnum.USER]),
-//     projectCreateValidator(),
-//     validate,
-//     createProject
-//   )
-//   .get(verifyJWT, getProjects);
-
-// router
-//   .route("/:projectId")
-//   .get(
-//     verifyJWT,
-//     mongoIdPathVariableValidator("projectId"),
-//     getProjectById
-//   )
-//   .patch(
-//     verifyJWT,
-//     mongoIdPathVariableValidator("projectId"),
-//     projectUpdateValidator(),
-//     validate,
-//     updateProject
-//   )
-//   .delete(
-//     verifyJWT,
-//     mongoIdPathVariableValidator("projectId"),
-//     deleteProject
-//   );
-
-// // Toggle project visibility
-// router.patch(
-//   "/:projectId/toggle-visibility",
-//   verifyJWT,
-//   mongoIdPathVariableValidator("projectId"),
-//   toggleProjectVisibility
-// );
-
-// // Member management
-// router.post(
-//   "/:projectId/members",
-//   verifyJWT,
-//   mongoIdPathVariableValidator("projectId"),
-//   // projectMemberValidator(),
-//   validate,
-//   addMemberToProject
-// );
-
-// router.patch(
-//   "/:projectId/members/role",
-//   verifyJWT,
-//   mongoIdPathVariableValidator("projectId"),
-//   // projectMemberRoleValidator(),
-//   validate,
-//   updateMemberRole
-// );
-
-// router.delete(
-//   "/:projectId/members",
-//   verifyJWT,
-//   mongoIdPathVariableValidator("projectId"),
-//   // projectMemberValidator(),
-//   validate,
-//   removeMemberFromProject
-// );
-
-// // Feature management
-// router.post(
-//   "/:projectId/features",
-//   verifyJWT,
-//   mongoIdPathVariableValidator("projectId"),
-//   projectFeatureValidator(),
-//   validate,
-//   assignFeatureToProject
-// );
-
-// router.delete(
-//   "/:projectId/features",
-//   verifyJWT,
-//   mongoIdPathVariableValidator("projectId"),
-//   projectFeatureValidator(),
-//   validate,
-//   unassignFeatureFromProject
-// );
-
-// export default router;
-
-
-
 import { Router } from "express";
 import { verifyJWT } from "../middlewares/auth.middlewares.js";
 import { validate } from "../validators/validate.js";
@@ -129,10 +9,6 @@ import {
   deleteFeature,
   assignUsersToFeature,
   removeUserFromFeature,
-  addCommentToFeature,
-  removeCommentFromFeature,
-  updateCommentToFeature,
-  toggleFeatureCompletion,
   getFeaturesByProjectId,
   getProjectsName,
   changePriority,
@@ -149,7 +25,6 @@ import {
   deleteWorkflow,
 } from "../controllers/feature.controller.js";
 import {
-  addCommentValidator,
   assignUsersValidator,
   featureCreateValidator,
   featureUpdateValidator,
@@ -157,7 +32,6 @@ import {
   changePriorityValidator,
   changeStatusValidator,
   changeDeadlineValidator,
-  updateCommentValidator,
   createQuestionValidator,
   updateQuestionValidator,
   tagsValidator,
@@ -166,10 +40,11 @@ import {
 
 const router = Router();
 
+// ── Feature CRUD ──────────────────────────────────────────────────────────────
+
 router
   .route("/")
   .post(verifyJWT, featureCreateValidator(), validate, createFeature);
-
 
 router
   .route("/get-project-name")
@@ -180,6 +55,12 @@ router
   .get(verifyJWT, getFeatureById)
   .patch(verifyJWT, featureUpdateValidator(), validate, updateFeature)
   .delete(verifyJWT, deleteFeature);
+
+// ── Features by Project ───────────────────────────────────────────────────────
+
+router.get("/project/:projectId", verifyJWT, getFeaturesByProjectId);
+
+// ── User Assignment ───────────────────────────────────────────────────────────
 
 router.post(
   "/:featureId/assign-users",
@@ -197,25 +78,8 @@ router.post(
   removeUserFromFeature
 );
 
-router.post(
-  "/:featureId/add-comment",
-  verifyJWT,
-  addCommentValidator(),
-  validate,
-  addCommentToFeature
-);
+// ── Priority / Status / Deadline ──────────────────────────────────────────────
 
-router.delete(
-  "/:featureId/comments/:commentId",
-  verifyJWT,
-  removeCommentFromFeature
-);
-
-router.patch("/:featureId/toggle-completion", verifyJWT, toggleFeatureCompletion);
-
-router.get("/project/:projectId", verifyJWT, getFeaturesByProjectId);
-
-// ── Priority / Status / Deadline ───────────────────────────────────
 router.patch(
   "/:featureId/change-priority",
   verifyJWT,
@@ -240,16 +104,8 @@ router.patch(
   changeDeadline
 );
 
-// ── Comment update ─────────────────────────────────────────────────
-router.patch(
-  "/:featureId/update-comment/:commentId",
-  verifyJWT,
-  updateCommentValidator(),
-  validate,
-  updateCommentToFeature
-);
+// ── Questions ─────────────────────────────────────────────────────────────────
 
-// ── Questions ──────────────────────────────────────────────────────
 router.post(
   "/:featureId/questions",
   verifyJWT,
@@ -278,7 +134,8 @@ router.patch(
   toggleQuestionCompletion
 );
 
-// ── Tags ───────────────────────────────────────────────────────────
+// ── Tags ──────────────────────────────────────────────────────────────────────
+
 router.post(
   "/:featureId/add-tags",
   verifyJWT,
@@ -295,7 +152,8 @@ router.post(
   removeTagsFromFeature
 );
 
-// ── Workflow ───────────────────────────────────────────────────────
+// ── Workflow ──────────────────────────────────────────────────────────────────
+
 router.post(
   "/:featureId/workflow",
   verifyJWT,

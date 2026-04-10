@@ -4,15 +4,17 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
+// ── CRUD ───────────────────────────────────────────────────────────────────────
+
 export const createFeature = asyncHandler(async (req, res) => {
   const {
     title,
     description,
     priority,
     projectId,
+    diaryId,
     deadline,
     benefits,
-
     tags = [],
   } = req.body;
 
@@ -25,14 +27,12 @@ export const createFeature = asyncHandler(async (req, res) => {
     description,
     priority,
     projectId,
+    diaryId: diaryId || null,
     benefits,
     createdBy: req.user._id,
     deadline: deadline || null,
     tags,
   });
-
-  project.features.push(feature._id);
-  await project.save();
 
   const createdFeature = await Feature.findById(feature._id)
     .populate("createdBy", "name email")
@@ -55,7 +55,6 @@ export const getFeaturesByProjectId = asyncHandler(async (req, res) => {
   const {
     status,
     priority,
-    isCompleted,
     sortBy = "createdAt",
     order = "desc",
   } = req.query;
@@ -64,7 +63,6 @@ export const getFeaturesByProjectId = asyncHandler(async (req, res) => {
 
   if (status) query.status = status;
   if (priority) query.priority = priority;
-  if (isCompleted !== undefined) query.isCompleted = isCompleted === "true";
 
   const features = await Feature.find(query)
     .populate("createdBy", "name email")
@@ -94,20 +92,17 @@ export const getFeatureById = asyncHandler(async (req, res) => {
 
 export const updateFeature = asyncHandler(async (req, res) => {
   const { featureId } = req.params;
-  const { title, description, benefits, deadline, } = req.body;
+  const { title, description, benefits, deadline } = req.body;
 
   let feature = await Feature.findById(featureId);
   if (!feature) throw new ApiError(404, "Feature not found");
 
-  feature.title = title || feature.title;
-  feature.description = description || feature.description;
-  feature.deadline = deadline || feature.deadline;
-  feature.benefits = benefits || feature.benefits;
+  if (title !== undefined) feature.title = title;
+  if (description !== undefined) feature.description = description;
+  if (benefits !== undefined) feature.benefits = benefits;
+  if (deadline !== undefined) feature.deadline = deadline || null;
   if (req.body.priority) feature.priority = req.body.priority;
-  if (req.body.status) {
-    feature.status = req.body.status;
-    feature.isCompleted = req.body.status === "completed";
-  }
+  if (req.body.status) feature.status = req.body.status;
 
   await feature.save();
 
@@ -126,21 +121,24 @@ export const deleteFeature = asyncHandler(async (req, res) => {
   const feature = await Feature.findById(featureId);
   if (!feature) throw new ApiError(404, "Feature not found");
 
+  // This triggers the pre-deleteOne hook which cascade-deletes comments
   await feature.deleteOne();
 
   return res
     .status(200)
     .json(new ApiResponse(200, {}, "Feature deleted successfully"));
 });
-// TODO: NEED TO COMPLETE LATER
+
+// ── User Assignment ────────────────────────────────────────────────────────────
+
 export const assignUsersToFeature = asyncHandler(async (req, res) => {
   const { featureId } = req.params;
-  const { userIds } = req.body; // array of users
+  const { userIds } = req.body;
 
   const feature = await Feature.findById(featureId);
   if (!feature) throw new ApiError(404, "Feature not found");
 
-  feature.assignedTo = [...new Set([...feature.assignedTo, ...userIds])]; // avoid duplicates
+  feature.assignedTo = [...new Set([...feature.assignedTo.map(String), ...userIds])];
   await feature.save();
 
   return res
@@ -153,7 +151,6 @@ export const assignUsersToFeature = asyncHandler(async (req, res) => {
       )
     );
 });
-// TODO: NEED TO COMPLETE LATER
 
 export const removeUserFromFeature = asyncHandler(async (req, res) => {
   const { featureId } = req.params;
@@ -178,71 +175,8 @@ export const removeUserFromFeature = asyncHandler(async (req, res) => {
     );
 });
 
-export const addCommentToFeature = asyncHandler(async (req, res) => {
-  const { featureId } = req.params;
-  const { text } = req.body;
+// ── Priority ───────────────────────────────────────────────────────────────────
 
-  const feature = await Feature.findById(featureId);
-  if (!feature) throw new ApiError(404, "Feature not found");
-
-  const newComment = {
-    text,
-    createdBy: req.user._id,
-  };
-
-  feature.comments.push(newComment);
-  await feature.save();
-
-  return res
-    .status(201)
-    .json(
-      new ApiResponse(
-        201,
-        { comments: feature.comments },
-        "Comment added successfully"
-      )
-    );
-});
-
-export const removeCommentFromFeature = asyncHandler(async (req, res) => {
-  const { featureId, commentId } = req.params;
-
-  const feature = await Feature.findById(featureId);
-  if (!feature) throw new ApiError(404, "Feature not found");
-
-  feature.comments = feature.comments.filter(
-    (c) => String(c._id) !== String(commentId)
-  );
-  await feature.save();
-
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { comments: feature.comments },
-        "Comment removed successfully"
-      )
-    );
-});
-
-export const toggleFeatureCompletion = asyncHandler(async (req, res) => {
-  const { featureId } = req.params;
-
-  const feature = await Feature.findById(featureId);
-  if (!feature) throw new ApiError(404, "Feature not found");
-
-  feature.isCompleted = !feature.isCompleted;
-  feature.status = feature.isCompleted ? "completed" : "pending";
-
-  await feature.save();
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, { feature }, "Feature completion toggled"));
-});
-
-// ── Priority ───────────────────────────────────────────────────────
 export const changePriority = asyncHandler(async (req, res) => {
   const { featureId } = req.params;
   const { priority } = req.body;
@@ -258,7 +192,8 @@ export const changePriority = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, { feature }, "Priority updated successfully"));
 });
 
-// ── Status ─────────────────────────────────────────────────────────
+// ── Status ─────────────────────────────────────────────────────────────────────
+
 export const changeStatus = asyncHandler(async (req, res) => {
   const { featureId } = req.params;
   const { status } = req.body;
@@ -267,10 +202,6 @@ export const changeStatus = asyncHandler(async (req, res) => {
   if (!feature) throw new ApiError(404, "Feature not found");
 
   feature.status = status;
-
-  // Auto-sync isCompleted flag
-  feature.isCompleted = status === "completed";
-
   await feature.save();
 
   return res
@@ -278,7 +209,8 @@ export const changeStatus = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, { feature }, "Status updated successfully"));
 });
 
-// ── Deadline ───────────────────────────────────────────────────────
+// ── Deadline ───────────────────────────────────────────────────────────────────
+
 export const changeDeadline = asyncHandler(async (req, res) => {
   const { featureId } = req.params;
   const { deadline } = req.body;
@@ -294,32 +226,8 @@ export const changeDeadline = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, { feature }, "Deadline updated successfully"));
 });
 
-// ── Update Comment ─────────────────────────────────────────────────
-export const updateCommentToFeature = asyncHandler(async (req, res) => {
-  const { featureId, commentId } = req.params;
-  const { text } = req.body;
+// ── Questions CRUD ─────────────────────────────────────────────────────────────
 
-  const feature = await Feature.findById(featureId);
-  if (!feature) throw new ApiError(404, "Feature not found");
-
-  const comment = feature.comments.id(commentId);
-  if (!comment) throw new ApiError(404, "Comment not found");
-
-  comment.text = text;
-  await feature.save();
-
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { comments: feature.comments },
-        "Comment updated successfully"
-      )
-    );
-});
-
-// ── Questions CRUD ─────────────────────────────────────────────────
 export const createQuestion = asyncHandler(async (req, res) => {
   const { featureId } = req.params;
   const { name, answer } = req.body;
@@ -413,7 +321,8 @@ export const toggleQuestionCompletion = asyncHandler(async (req, res) => {
     );
 });
 
-// ── Tags ───────────────────────────────────────────────────────────
+// ── Tags ───────────────────────────────────────────────────────────────────────
+
 export const addTagsToFeature = asyncHandler(async (req, res) => {
   const { featureId } = req.params;
   const { tag } = req.body;
@@ -423,7 +332,6 @@ export const addTagsToFeature = asyncHandler(async (req, res) => {
   const feature = await Feature.findById(featureId);
   if (!feature) throw new ApiError(404, "Feature not found");
 
-  // Avoid duplicates
   if (!feature.tags.includes(tag)) {
     feature.tags.push(tag);
   }
@@ -455,7 +363,8 @@ export const removeTagsFromFeature = asyncHandler(async (req, res) => {
     );
 });
 
-// ── Workflow ───────────────────────────────────────────────────────
+// ── Workflow ───────────────────────────────────────────────────────────────────
+
 export const addWorkflow = asyncHandler(async (req, res) => {
   const { featureId } = req.params;
   const { flow } = req.body;
@@ -465,7 +374,7 @@ export const addWorkflow = asyncHandler(async (req, res) => {
   const feature = await Feature.findById(featureId);
   if (!feature) throw new ApiError(404, "Feature not found");
 
-  feature.workFlow.push({ flow });
+  feature.workflow.push({ flow });
   await feature.save();
 
   return res
@@ -473,7 +382,7 @@ export const addWorkflow = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(
         201,
-        { workFlow: feature.workFlow },
+        { workflow: feature.workflow },
         "Workflow step added successfully"
       )
     );
@@ -488,7 +397,7 @@ export const updateWorkflow = asyncHandler(async (req, res) => {
   const feature = await Feature.findById(featureId);
   if (!feature) throw new ApiError(404, "Feature not found");
 
-  const step = feature.workFlow.id(workflowId);
+  const step = feature.workflow.id(workflowId);
   if (!step) throw new ApiError(404, "Workflow step not found");
 
   step.flow = flow;
@@ -499,7 +408,7 @@ export const updateWorkflow = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(
         200,
-        { workFlow: feature.workFlow },
+        { workflow: feature.workflow },
         "Workflow step updated successfully"
       )
     );
@@ -511,7 +420,7 @@ export const deleteWorkflow = asyncHandler(async (req, res) => {
   const feature = await Feature.findById(featureId);
   if (!feature) throw new ApiError(404, "Feature not found");
 
-  const step = feature.workFlow.id(workflowId);
+  const step = feature.workflow.id(workflowId);
   if (!step) throw new ApiError(404, "Workflow step not found");
 
   step.deleteOne();
@@ -522,18 +431,15 @@ export const deleteWorkflow = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(
         200,
-        { workFlow: feature.workFlow },
+        { workflow: feature.workflow },
         "Workflow step deleted successfully"
       )
     );
 });
 
-// ── Misc ───────────────────────────────────────────────────────────
-export const getProjectsName = asyncHandler(async (req, res) => {
-  // if (!req.user.companyId) {
-  //   throw new ApiError(409, "You are not allowed to get projects");
-  // }
+// ── Misc ───────────────────────────────────────────────────────────────────────
 
+export const getProjectsName = asyncHandler(async (req, res) => {
   const projects = await Project.find({ createdBy: req.user._id }).select(
     "name _id"
   );
