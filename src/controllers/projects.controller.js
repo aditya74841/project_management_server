@@ -164,6 +164,8 @@ export const getProjectById = asyncHandler(async (req, res) => {
 });
 
 export const updateProject = asyncHandler(async (req, res) => {
+  console.log("Checkign");
+
   const { projectId } = req.params;
   const { name, description, deadline, status } = req.body;
 
@@ -171,6 +173,9 @@ export const updateProject = asyncHandler(async (req, res) => {
   if (!project) {
     throw new ApiError(404, "Project not found");
   }
+
+
+  // console.log("The project is", project)
 
   if (typeof name === "string" && name.trim()) {
     project.name = name.trim();

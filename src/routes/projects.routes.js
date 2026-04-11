@@ -45,7 +45,7 @@ router
     verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN, UserRolesEnum.USER]),
     mongoIdPathVariableValidator("projectId"),
     projectUpdateValidator(),
-    validate,
+    // validate,
     updateProject
   )
   .delete(
