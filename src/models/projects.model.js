@@ -23,7 +23,17 @@ const projectSchema = new Schema(
       default: null,
     },
     tags: [{ type: String, trim: true }],
-    techStack: [{ type: String, trim: true }],
+    techStack: [
+      {
+        name: { type: String, required: true }, // e.g., "Frontend", "Backend"
+        tech: [
+          {
+            name: { type: String, required: true, trim: true }, // e.g., "Next.js"
+            description: { type: String, trim: true, default: "" }, // e.g., "Used for SSR and unified routing"
+          },
+        ],
+      },
+    ],
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",

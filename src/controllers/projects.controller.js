@@ -164,7 +164,6 @@ export const getProjectById = asyncHandler(async (req, res) => {
 });
 
 export const updateProject = asyncHandler(async (req, res) => {
-  console.log("Checkign");
 
   const { projectId } = req.params;
   const { name, description, deadline, status } = req.body;
@@ -299,3 +298,222 @@ export const removeMemberFromProject = asyncHandler(async (req, res) => {
       )
     );
 });
+
+// ── Tags ───────────────────────────────────────────────────────────────────────
+
+export const addTagToProject = asyncHandler(async (req, res) => {
+  const { projectId } = req.params;
+  const { tag } = req.body;
+
+  const project = await Project.findById(projectId);
+  if (!project) throw new ApiError(404, "Project not found");
+
+  const normalizedTag = tag.trim();
+
+  // Check for duplicate
+  if (project.tags.includes(normalizedTag)) {
+    throw new ApiError(400, "Tag already exists in this project");
+  }
+
+  project.tags.push(normalizedTag);
+  await project.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { tags: project.tags }, "Tag added successfully"));
+});
+
+export const removeTagFromProject = asyncHandler(async (req, res) => {
+  const { projectId } = req.params;
+  const { tag } = req.body;
+
+  const project = await Project.findById(projectId);
+  if (!project) throw new ApiError(404, "Project not found");
+
+  project.tags = project.tags.filter((t) => t !== tag.trim());
+  await project.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { tags: project.tags }, "Tag removed successfully"));
+});
+
+// ── Tech Stack Category Management ──────────────────────────────────────────
+
+export const addTechStackCategory = asyncHandler(async (req, res) => {
+  const { projectId } = req.params;
+  const { categoryName } = req.body;
+
+  const project = await Project.findById(projectId);
+  if (!project) throw new ApiError(404, "Project not found");
+
+  const normalizedName = categoryName.trim();
+
+  // Check if category already exists
+  const categoryExists = project.techStack.some(
+    (item) => item.name.toLowerCase() === normalizedName.toLowerCase()
+  );
+
+  if (categoryExists) {
+    throw new ApiError(400, `Category '${normalizedName}' already exists`);
+  }
+
+  project.techStack.push({ name: normalizedName, tech: [] });
+  await project.save();
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, { techStack: project.techStack }, "Category added successfully"));
+});
+
+export const updateTechStackCategory = asyncHandler(async (req, res) => {
+  const { projectId } = req.params;
+  const { categoryName, newCategoryName } = req.body;
+
+  const project = await Project.findById(projectId);
+  if (!project) throw new ApiError(404, "Project not found");
+
+  const currentName = categoryName.trim().toLowerCase();
+  const nextName = newCategoryName.trim();
+
+  const categoryIndex = project.techStack.findIndex(
+    (item) => item.name.toLowerCase() === currentName
+  );
+
+  if (categoryIndex === -1) {
+    throw new ApiError(404, "Category not found");
+  }
+
+  project.techStack[categoryIndex].name = nextName;
+  await project.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { techStack: project.techStack }, "Category renamed successfully"));
+});
+
+export const removeTechStackCategory = asyncHandler(async (req, res) => {
+  const { projectId } = req.params;
+  const { categoryName } = req.body;
+
+  const project = await Project.findById(projectId);
+  if (!project) throw new ApiError(404, "Project not found");
+
+  const targetName = categoryName.trim().toLowerCase();
+
+  project.techStack = project.techStack.filter(
+    (item) => item.name.toLowerCase() !== targetName
+  );
+
+  await project.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { techStack: project.techStack }, "Category removed successfully"));
+});
+
+// ── Tech Item Management ──────────────────────────────────────────────────────
+
+export const addTechItem = asyncHandler(async (req, res) => {
+  const { projectId } = req.params;
+  const { categoryName, techName, description = "" } = req.body;
+
+  const project = await Project.findById(projectId);
+  if (!project) throw new ApiError(404, "Project not found");
+
+  const normalizedCat = categoryName.trim().toLowerCase();
+  const normalizedTech = techName.trim();
+
+  const categoryIndex = project.techStack.findIndex(
+    (item) => item.name.toLowerCase() === normalizedCat
+  );
+
+  if (categoryIndex === -1) {
+    throw new ApiError(404, `Category '${categoryName}' not found. Please create it first.`);
+  }
+
+  // Check if tech already exists in this category
+  const techExists = project.techStack[categoryIndex].tech.some(
+    (t) => t.name.toLowerCase() === normalizedTech.toLowerCase()
+  );
+
+  if (techExists) {
+    throw new ApiError(400, `Tech '${normalizedTech}' already exists in this category`);
+  }
+
+  project.techStack[categoryIndex].tech.push({
+    name: normalizedTech,
+    description: description.trim(),
+  });
+
+  await project.save();
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, { techStack: project.techStack }, "Tech item added successfully"));
+});
+
+export const updateTechItem = asyncHandler(async (req, res) => {
+  const { projectId } = req.params;
+  const { categoryName, techName, newTechName, newDescription } = req.body;
+
+  const project = await Project.findById(projectId);
+  if (!project) throw new ApiError(404, "Project not found");
+
+  const normalizedCat = categoryName.trim().toLowerCase();
+  const normalizedTech = techName.trim().toLowerCase();
+
+  const categoryIndex = project.techStack.findIndex(
+    (item) => item.name.toLowerCase() === normalizedCat
+  );
+
+  if (categoryIndex === -1) throw new ApiError(404, "Category not found");
+
+  const techIndex = project.techStack[categoryIndex].tech.findIndex(
+    (t) => t.name.toLowerCase() === normalizedTech
+  );
+
+  if (techIndex === -1) throw new ApiError(404, "Tech item not found in this category");
+
+  if (newTechName && newTechName.trim()) {
+    project.techStack[categoryIndex].tech[techIndex].name = newTechName.trim();
+  }
+  
+  if (typeof newDescription === "string") {
+    project.techStack[categoryIndex].tech[techIndex].description = newDescription.trim();
+  }
+
+  await project.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { techStack: project.techStack }, "Tech item updated successfully"));
+});
+
+export const removeTechItem = asyncHandler(async (req, res) => {
+  const { projectId } = req.params;
+  const { categoryName, techName } = req.body;
+
+  const project = await Project.findById(projectId);
+  if (!project) throw new ApiError(404, "Project not found");
+
+  const normalizedCat = categoryName.trim().toLowerCase();
+  const normalizedTech = techName.trim().toLowerCase();
+
+  const categoryIndex = project.techStack.findIndex(
+    (item) => item.name.toLowerCase() === normalizedCat
+  );
+
+  if (categoryIndex === -1) throw new ApiError(404, "Category not found");
+
+  project.techStack[categoryIndex].tech = project.techStack[categoryIndex].tech.filter(
+    (t) => t.name.toLowerCase() !== normalizedTech
+  );
+
+  await project.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { techStack: project.techStack }, "Tech item removed successfully"));
+});
+

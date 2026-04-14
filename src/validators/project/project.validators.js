@@ -77,8 +77,113 @@ const projectMemberValidator = () => {
   ];
 };
 
+const projectTagValidator = () => {
+  return [
+    body("tag")
+      .trim()
+      .notEmpty()
+      .withMessage("Tag name is required")
+      .isString()
+      .withMessage("Tag must be a string"),
+  ];
+};
+
+// ── Tech Stack Category Validators ──────────────────────────────────────────
+
+const addTechStackCategoryValidator = () => [
+  body("categoryName")
+    .trim()
+    .notEmpty()
+    .withMessage("Category name is required")
+    .isString(),
+];
+
+const updateTechStackCategoryValidator = () => [
+  body("categoryName")
+    .trim()
+    .notEmpty()
+    .withMessage("Current category name is required")
+    .isString(),
+  body("newCategoryName")
+    .trim()
+    .notEmpty()
+    .withMessage("New category name is required")
+    .isString(),
+];
+
+const removeTechStackCategoryValidator = () => [
+  body("categoryName")
+    .trim()
+    .notEmpty()
+    .withMessage("Category name is required to remove")
+    .isString(),
+];
+
+// ── Tech Item Validators ──────────────────────────────────────────────────────
+
+const addTechItemValidator = () => [
+  body("categoryName")
+    .trim()
+    .notEmpty()
+    .withMessage("Category name is required")
+    .isString(),
+  body("techName")
+    .trim()
+    .notEmpty()
+    .withMessage("Tech name is required")
+    .isString(),
+  body("description")
+    .optional()
+    .trim()
+    .isString()
+    .withMessage("Description must be a string"),
+];
+
+const updateTechItemValidator = () => [
+  body("categoryName")
+    .trim()
+    .notEmpty()
+    .withMessage("Category name is required")
+    .isString(),
+  body("techName")
+    .trim()
+    .notEmpty()
+    .withMessage("Current tech name is required")
+    .isString(),
+  body("newTechName")
+    .optional()
+    .trim()
+    .isString()
+    .withMessage("New tech name must be a string"),
+  body("newDescription")
+    .optional()
+    .trim()
+    .isString()
+    .withMessage("New description must be a string"),
+];
+
+const removeTechItemValidator = () => [
+  body("categoryName")
+    .trim()
+    .notEmpty()
+    .withMessage("Category name is required")
+    .isString(),
+  body("techName")
+    .trim()
+    .notEmpty()
+    .withMessage("Tech name is required to remove")
+    .isString(),
+];
+
 export {
   projectCreateValidator,
   projectUpdateValidator,
   projectMemberValidator,
+  projectTagValidator,
+  addTechStackCategoryValidator,
+  updateTechStackCategoryValidator,
+  removeTechStackCategoryValidator,
+  addTechItemValidator,
+  updateTechItemValidator,
+  removeTechItemValidator,
 };

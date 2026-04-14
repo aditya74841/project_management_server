@@ -9,6 +9,13 @@ import {
   projectCreateValidator,
   projectUpdateValidator,
   projectMemberValidator,
+  projectTagValidator,
+  addTechStackCategoryValidator,
+  updateTechStackCategoryValidator,
+  removeTechStackCategoryValidator,
+  addTechItemValidator,
+  updateTechItemValidator,
+  removeTechItemValidator,
 } from "../validators/project/project.validators.js";
 import {
   createProject,
@@ -19,6 +26,14 @@ import {
   removeMemberFromProject,
   getProject,
   changeProjectStatus,
+  addTagToProject,
+  removeTagFromProject,
+  addTechStackCategory,
+  updateTechStackCategory,
+  removeTechStackCategory,
+  addTechItem,
+  updateTechItem,
+  removeTechItem,
 } from "../controllers/projects.controller.js";
 import { mongoIdPathVariableValidator } from "../validators/common/mongodb.validators.js";
 
@@ -45,7 +60,7 @@ router
     verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN, UserRolesEnum.USER]),
     mongoIdPathVariableValidator("projectId"),
     projectUpdateValidator(),
-    // validate,
+    validate,
     updateProject
   )
   .delete(
@@ -82,6 +97,92 @@ router.delete(
   projectMemberValidator(),
   validate,
   removeMemberFromProject
+);
+
+// ── Tags ──────────────────────────────────────────────────────────────────────
+
+router.post(
+  "/:projectId/tags",
+  verifyJWT,
+  verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN, UserRolesEnum.USER]),
+  mongoIdPathVariableValidator("projectId"),
+  projectTagValidator(),
+  validate,
+  addTagToProject
+);
+
+router.delete(
+  "/:projectId/tags",
+  verifyJWT,
+  verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN, UserRolesEnum.USER]),
+  mongoIdPathVariableValidator("projectId"),
+  projectTagValidator(),
+  validate,
+  removeTagFromProject
+);
+
+// ── Tech Stack Category Management ──────────────────────────────────────────
+
+router.post(
+  "/:projectId/tech-stack-category",
+  verifyJWT,
+  verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN, UserRolesEnum.USER]),
+  mongoIdPathVariableValidator("projectId"),
+  addTechStackCategoryValidator(),
+  validate,
+  addTechStackCategory
+);
+
+router.patch(
+  "/:projectId/tech-stack-category",
+  verifyJWT,
+  verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN, UserRolesEnum.USER]),
+  mongoIdPathVariableValidator("projectId"),
+  updateTechStackCategoryValidator(),
+  validate,
+  updateTechStackCategory
+);
+
+router.delete(
+  "/:projectId/tech-stack-category",
+  verifyJWT,
+  verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN, UserRolesEnum.USER]),
+  mongoIdPathVariableValidator("projectId"),
+  removeTechStackCategoryValidator(),
+  validate,
+  removeTechStackCategory
+);
+
+// ── Tech Item Management ──────────────────────────────────────────────────────
+
+router.post(
+  "/:projectId/tech-item",
+  verifyJWT,
+  verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN, UserRolesEnum.USER]),
+  mongoIdPathVariableValidator("projectId"),
+  addTechItemValidator(),
+  validate,
+  addTechItem
+);
+
+router.patch(
+  "/:projectId/tech-item",
+  verifyJWT,
+  verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN, UserRolesEnum.USER]),
+  mongoIdPathVariableValidator("projectId"),
+  updateTechItemValidator(),
+  validate,
+  updateTechItem
+);
+
+router.delete(
+  "/:projectId/tech-item",
+  verifyJWT,
+  verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN, UserRolesEnum.USER]),
+  mongoIdPathVariableValidator("projectId"),
+  removeTechItemValidator(),
+  validate,
+  removeTechItem
 );
 
 export default router;
