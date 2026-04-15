@@ -73,6 +73,14 @@ const projectDiarySchema = new Schema(
           type: String,
           trim: true,
         },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+        updatedAt: {
+          type: Date,
+          default: Date.now,
+        },
       },
     ],
 

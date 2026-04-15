@@ -1,5 +1,6 @@
 import { ProjectDiary } from "../models/projectDiary.model.js";
 import { Project } from "../models/projects.model.js";
+import { Feature } from "../models/feature.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -103,14 +104,30 @@ export const getAllProjectDiaries = asyncHandler(async (req, res) => {
     const limitNumber = parseInt(limit, 10);
     const skip = (pageNumber - 1) * limitNumber;
 
-    const projectDiaries = await ProjectDiary.find(query)
+    let projectDiaries = await ProjectDiary.find(query)
         .sort({ [sortBy]: order === "asc" ? 1 : -1 })
         .skip(skip)
         .limit(limitNumber);
 
+    let total = await ProjectDiary.countDocuments(query);
 
-    console.log("The Project Diaries is", projectDiaries)
-    const total = await ProjectDiary.countDocuments(query);
+    // --- Auto-Initialization Logic (Zen Prism Edition) ---
+    // If filtering by projectId and no entries exist yet, bootstrap a Genesis Entry
+    if (projectDiaries.length === 0 && projectId && pageNumber === 1) {
+        const project = await Project.findById(projectId);
+        if (project) {
+            const defaultDiary = await ProjectDiary.create({
+                projectId,
+                title: `${project.name} - Genesis Entry`,
+                description: `Strategic footprint started for ${project.name}. Use this space to map technical decisions and product logic.`,
+                status: "idea",
+                priority: "medium",
+                createdBy: req.user?._id // If auth is available
+            });
+            projectDiaries = [defaultDiary];
+            total = 1;
+        }
+    }
 
     return res
         .status(200)
@@ -149,7 +166,7 @@ export const getProjectDiaryById = asyncHandler(async (req, res) => {
 
 export const updateProjectDiary = asyncHandler(async (req, res) => {
     const { diaryId } = req.params;
-    const { title, description } = req.body;
+    const { title, description, status, priority } = req.body;
     let projectDiary = await ProjectDiary.findById(diaryId);
     if (!projectDiary) {
         throw new ApiError(404, "Project Diary not found");
@@ -161,6 +178,14 @@ export const updateProjectDiary = asyncHandler(async (req, res) => {
 
     if (typeof description === "string") {
         projectDiary.description = description.trim();
+    }
+
+    if (status) {
+        projectDiary.status = status.toLowerCase();
+    }
+
+    if (priority) {
+        projectDiary.priority = priority.toLowerCase();
     }
 
 
@@ -226,13 +251,13 @@ export const updateDiaryPriority = asyncHandler(async (req, res) => {
 
 export const addQuestion = asyncHandler(async (req, res) => {
     const { diaryId } = req.params;
-    const { name, answer } = req.body;
+    const { name, answer, isCompleted } = req.body;
 
     if (!name) throw new ApiError(400, "Question name is required");
 
     const projectDiary = await ProjectDiary.findByIdAndUpdate(
         diaryId,
-        { $push: { questions: { name, answer } } },
+        { $push: { questions: { name, answer, isCompleted: !!isCompleted } } },
         { new: true, runValidators: true }
     );
     if (!projectDiary) throw new ApiError(404, "Project Diary not found");
@@ -255,11 +280,12 @@ export const removeQuestion = asyncHandler(async (req, res) => {
 
 export const updateQuestion = asyncHandler(async (req, res) => {
     const { diaryId, questionId } = req.params;
-    const { name, answer } = req.body;
+    const { name, answer, isCompleted } = req.body;
 
     const updateFields = {};
     if (name !== undefined) updateFields["questions.$.name"] = name;
     if (answer !== undefined) updateFields["questions.$.answer"] = answer;
+    if (isCompleted !== undefined) updateFields["questions.$.isCompleted"] = isCompleted;
 
     const projectDiary = await ProjectDiary.findOneAndUpdate(
         { _id: diaryId, "questions._id": questionId },
@@ -450,14 +476,17 @@ export const updateFeatureDetails = asyncHandler(async (req, res) => {
     const { diaryId, featureId } = req.params;
     const { name, description } = req.body;
 
+    const updateObj = {};
+    if (name !== undefined) updateObj["features.$.name"] = name;
+    if (description !== undefined) updateObj["features.$.description"] = description;
+
+    if (Object.keys(updateObj).length === 0) {
+        throw new ApiError(400, "At least one field (name or description) is required for update");
+    }
+
     const projectDiary = await ProjectDiary.findOneAndUpdate(
         { _id: diaryId, "features._id": featureId },
-        {
-            $set: {
-                "features.$.name": name,
-                "features.$.description": description
-            }
-        },
+        { $set: updateObj },
         { new: true, runValidators: true }
     );
     if (!projectDiary) throw new ApiError(404, "Project Diary or Feature not found");
@@ -487,14 +516,51 @@ export const updateFeatureStatus = asyncHandler(async (req, res) => {
 
     if (!status) throw new ApiError(400, "Status is required");
 
-    const projectDiary = await ProjectDiary.findOneAndUpdate(
-        { _id: diaryId, "features._id": featureId },
-        { $set: { "features.$.status": status } },
-        { new: true, runValidators: true }
-    );
-    if (!projectDiary) throw new ApiError(404, "Project Diary or Feature not found");
-
     return res.status(200).json(new ApiResponse(200, { projectDiary }, "Feature status updated successfully"));
+});
+
+export const promoteFeatureToRegistry = asyncHandler(async (req, res) => {
+    const { diaryId, featureId } = req.params;
+
+    const diary = await ProjectDiary.findById(diaryId);
+    if (!diary) throw new ApiError(404, "Project Diary not found");
+
+    const featureIndex = diary.features.findIndex(f => f._id.toString() === featureId);
+    if (featureIndex === -1) throw new ApiError(404, "Feature not found in diary");
+
+    const diaryFeature = diary.features[featureIndex];
+
+    if (diaryFeature.spawnedFeatureId) {
+        throw new ApiError(400, "This feature has already been promoted to the registry");
+    }
+
+    // Map priority
+    const priorityMap = {
+        "musthave": "high",
+        "nicetohave": "low"
+    };
+
+    // Create the actual feature
+    const newFeature = await Feature.create({
+        title: diaryFeature.name,
+        description: diaryFeature.description,
+        projectId: diary.projectId,
+        diaryId: diary._id,
+        priority: priorityMap[diaryFeature.priority] || "medium",
+        status: "pending",
+        createdBy: req.user?._id
+    });
+
+    // Update the diary feature and the diary's spawned list
+    diary.features[featureIndex].spawnedFeatureId = newFeature._id;
+    diary.spawnedFeatures.push(newFeature._id);
+
+    await diary.save();
+
+    return res.status(201).json(new ApiResponse(201, {
+        projectDiary: diary,
+        newFeature
+    }, "Feature successfully promoted to Registry"));
 });
 
 export const toggleFeatureCompletion = asyncHandler(async (req, res) => {

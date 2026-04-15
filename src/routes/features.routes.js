@@ -20,9 +20,12 @@ import {
   toggleQuestionCompletion,
   addTagsToFeature,
   removeTagsFromFeature,
-  addWorkflow,
   updateWorkflow,
   deleteWorkflow,
+  addWorkflow,
+  addBenefit,
+  updateBenefit,
+  deleteBenefit,
 } from "../controllers/feature.controller.js";
 import {
   assignUsersValidator,
@@ -36,6 +39,7 @@ import {
   updateQuestionValidator,
   tagsValidator,
   workflowValidator,
+  benefitValidator,
 } from "../validators/project/features.validators.js";
 
 const router = Router();
@@ -174,6 +178,30 @@ router.delete(
   "/:featureId/workflow/:workflowId",
   verifyJWT,
   deleteWorkflow
+);
+
+// ── Benefits ──────────────────────────────────────────────────────────────────
+
+router.post(
+  "/:featureId/benefits",
+  verifyJWT,
+  benefitValidator(),
+  validate,
+  addBenefit
+);
+
+router.patch(
+  "/:featureId/benefits/:benefitId",
+  verifyJWT,
+  benefitValidator(),
+  validate,
+  updateBenefit
+);
+
+router.delete(
+  "/:featureId/benefits/:benefitId",
+  verifyJWT,
+  deleteBenefit
 );
 
 export default router;

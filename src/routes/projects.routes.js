@@ -16,6 +16,8 @@ import {
   addTechItemValidator,
   updateTechItemValidator,
   removeTechItemValidator,
+  addLinkValidator,
+  updateLinkValidator,
 } from "../validators/project/project.validators.js";
 import {
   createProject,
@@ -34,6 +36,9 @@ import {
   addTechItem,
   updateTechItem,
   removeTechItem,
+  addLink,
+  updateLink,
+  removeLink,
 } from "../controllers/projects.controller.js";
 import { mongoIdPathVariableValidator } from "../validators/common/mongodb.validators.js";
 
@@ -183,6 +188,39 @@ router.delete(
   removeTechItemValidator(),
   validate,
   removeTechItem
+);
+
+// ── Link Management ───────────────────────────────────────────────────────────
+
+router.post(
+  "/:projectId/links",
+  verifyJWT,
+  verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN, UserRolesEnum.USER]),
+  mongoIdPathVariableValidator("projectId"),
+  addLinkValidator(),
+  validate,
+  addLink
+);
+
+router.patch(
+  "/:projectId/links/:linkId",
+  verifyJWT,
+  verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN, UserRolesEnum.USER]),
+  mongoIdPathVariableValidator("projectId"),
+  mongoIdPathVariableValidator("linkId"),
+  updateLinkValidator(),
+  validate,
+  updateLink
+);
+
+router.delete(
+  "/:projectId/links/:linkId",
+  verifyJWT,
+  verifyPermission([UserRolesEnum.SUPERADMIN, UserRolesEnum.ADMIN, UserRolesEnum.USER]),
+  mongoIdPathVariableValidator("projectId"),
+  mongoIdPathVariableValidator("linkId"),
+  validate,
+  removeLink
 );
 
 export default router;

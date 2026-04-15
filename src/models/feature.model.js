@@ -13,11 +13,15 @@ const featureSchema = new Schema(
       default: "",
       trim: true,
     },
-    benefits: {
-      type: String,
-      default: "",
-      trim: true,
-    },
+    benefits: [
+      {
+        text: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+      },
+    ],
 
     // ── Ownership ─────────────────────────────────────────────────────────────
     projectId: {

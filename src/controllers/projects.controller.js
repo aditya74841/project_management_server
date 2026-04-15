@@ -116,7 +116,6 @@ export const getProject = asyncHandler(async (req, res) => {
       .populate("members", "name email")
       .select("-__v")
       .lean();
-
     const total = await Project.countDocuments(filter);
 
     const response = {
@@ -134,7 +133,6 @@ export const getProject = asyncHandler(async (req, res) => {
         search: search || "",
       },
     };
-
     return res.status(200).json(
       new ApiResponse(
         200,
@@ -478,7 +476,7 @@ export const updateTechItem = asyncHandler(async (req, res) => {
   if (newTechName && newTechName.trim()) {
     project.techStack[categoryIndex].tech[techIndex].name = newTechName.trim();
   }
-  
+
   if (typeof newDescription === "string") {
     project.techStack[categoryIndex].tech[techIndex].description = newDescription.trim();
   }
@@ -517,3 +515,63 @@ export const removeTechItem = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, { techStack: project.techStack }, "Tech item removed successfully"));
 });
 
+export const addLink = asyncHandler(async (req, res) => {
+  const { projectId } = req.params;
+  const { name, url } = req.body;
+
+
+  if (!projectId) throw new ApiError(404, "Project ID not found");
+
+  if (!name || !url) throw new ApiError(400, "Name and URL are required");
+
+  const normalizedname = name.trim().toLowerCase();
+
+  const projectLinks = await Project.findByIdAndUpdate(
+    projectId,
+    { $push: { links: { name: normalizedname, url } } },
+    { new: true, runValidators: true }
+  );
+  // Check if tech already exists in this category
+  if (!projectLinks) throw new ApiError(404, "Project Link not found");
+
+
+  return res.status(200).json(new ApiResponse(200, { projectLinks }, "Reference link added successfully"));
+});
+
+export const updateLink = asyncHandler(async (req, res) => {
+  const { projectId, linkId } = req.params;
+  const { name, url } = req.body;
+
+
+  if (!projectId || !linkId) throw new ApiError(404, "Project  or Link ID not found");
+
+
+
+  const updateFields = {};
+  if (name !== undefined) updateFields["links.$.name"] = name;
+  if (url !== undefined) updateFields["links.$.url"] = url;
+
+  const project = await Project.findOneAndUpdate(
+    { _id: projectId, "links._id": linkId },
+    { $set: updateFields },
+    { new: true, runValidators: true }
+  );
+  if (!project) throw new ApiError(404, "Project or Reference Link not found");
+
+  return res.status(200).json(new ApiResponse(200, { project }, "Reference link updated successfully"));
+});
+
+export const removeLink = asyncHandler(async (req, res) => {
+  const { projectId, linkId } = req.params;
+
+  if (!projectId || !linkId) throw new ApiError(404, "Project  or Link ID not found");
+
+  const project = await Project.findByIdAndUpdate(
+    projectId,
+    { $pull: { links: { _id: linkId } } },
+    { new: true, runValidators: true }
+  );
+  if (!project) throw new ApiError(404, "Project or Reference Link not found");
+
+  return res.status(200).json(new ApiResponse(200, { project }, "Reference link removed successfully"));
+});

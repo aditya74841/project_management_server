@@ -22,7 +22,8 @@ import {
     addIdeaValidator,
     updateIdeaValidator,
     addProjectUpdateValidator,
-    updateProjectUpdateValidator
+    updateProjectUpdateValidator,
+    updateProjectDiaryValidator
 } from "../validators/project/projectDiary.validators.js";
 import {
     createProjectDiary,
@@ -57,7 +58,8 @@ import {
     updateIdea,
     addProjectUpdate,
     removeProjectUpdate,
-    updateProjectUpdate
+    updateProjectUpdate,
+    promoteFeatureToRegistry
 } from "../controllers/projectDiary.controller.js";
 
 const router = Router();
@@ -99,6 +101,7 @@ router
     )
     .patch(
         mongoIdPathVariableValidator("diaryId"),
+        updateProjectDiaryValidator(),
         validate,
         updateProjectDiary
     )
@@ -263,6 +266,8 @@ router.patch(
     validate,
     updateFeaturePriority
 );
+
+router.route("/:diaryId/features/:featureId/promote").post(verifyJWT, promoteFeatureToRegistry);
 
 router.patch(
     "/:diaryId/features/:featureId/status",

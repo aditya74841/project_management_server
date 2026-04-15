@@ -5,10 +5,37 @@ export const createProjectDiaryValidator = () => {
         body("title").notEmpty().withMessage("Title is required").trim(),
         body("status")
             .optional()
+            .customSanitizer((value) => {
+                return typeof value === "string" ? value.toLowerCase() : value;
+            })
             .isIn(["idea", "scoping", "in-progress", "completed", "archived"])
             .withMessage("Invalid status"),
         body("priority")
             .optional()
+            .customSanitizer((value) => {
+                return typeof value === "string" ? value.toLowerCase() : value;
+            })
+            .isIn(["low", "medium", "high"])
+            .withMessage("Invalid priority"),
+    ];
+};
+
+export const updateProjectDiaryValidator = () => {
+    return [
+        body("title").optional().notEmpty().withMessage("Title cannot be empty").trim(),
+        body("description").optional().trim(),
+        body("status")
+            .optional()
+            .customSanitizer((value) => {
+                return typeof value === "string" ? value.toLowerCase() : value;
+            })
+            .isIn(["idea", "scoping", "in-progress", "completed", "archived"])
+            .withMessage("Invalid status"),
+        body("priority")
+            .optional()
+            .customSanitizer((value) => {
+                return typeof value === "string" ? value.toLowerCase() : value;
+            })
             .isIn(["low", "medium", "high"])
             .withMessage("Invalid priority"),
     ];
@@ -49,6 +76,7 @@ export const addQuestionValidator = () => {
     return [
         body("name").notEmpty().withMessage("Question name is required").trim(),
         body("answer").optional().trim(),
+        body("isCompleted").optional().isBoolean().withMessage("isCompleted must be a boolean"),
     ];
 };
 
@@ -62,6 +90,7 @@ export const updateQuestionValidator = () => {
     return [
         body("name").optional().trim().notEmpty().withMessage("Question name cannot be empty"),
         body("answer").optional().trim(),
+        body("isCompleted").optional().isBoolean().withMessage("isCompleted must be a boolean"),
     ];
 };
 

@@ -28,7 +28,7 @@ export const createFeature = asyncHandler(async (req, res) => {
     priority,
     projectId,
     diaryId: diaryId || null,
-    benefits,
+    benefits: Array.isArray(benefits) ? benefits.map(b => ({ text: b })) : [],
     createdBy: req.user._id,
     deadline: deadline || null,
     tags,
@@ -92,14 +92,13 @@ export const getFeatureById = asyncHandler(async (req, res) => {
 
 export const updateFeature = asyncHandler(async (req, res) => {
   const { featureId } = req.params;
-  const { title, description, benefits, deadline } = req.body;
+  const { title, description, deadline } = req.body;
 
   let feature = await Feature.findById(featureId);
   if (!feature) throw new ApiError(404, "Feature not found");
 
   if (title !== undefined) feature.title = title;
   if (description !== undefined) feature.description = description;
-  if (benefits !== undefined) feature.benefits = benefits;
   if (deadline !== undefined) feature.deadline = deadline || null;
   if (req.body.priority) feature.priority = req.body.priority;
   if (req.body.status) feature.status = req.body.status;
@@ -433,6 +432,76 @@ export const deleteWorkflow = asyncHandler(async (req, res) => {
         200,
         { workflow: feature.workflow },
         "Workflow step deleted successfully"
+      )
+    );
+});
+
+// ── Benefits ──────────────────────────────────────────────────────────────────
+
+export const addBenefit = asyncHandler(async (req, res) => {
+  const { featureId } = req.params;
+  const { text } = req.body;
+
+  const feature = await Feature.findById(featureId);
+  if (!feature) throw new ApiError(404, "Feature not found");
+
+  feature.benefits.push({ text });
+  await feature.save();
+
+  return res
+    .status(201)
+    .json(
+      new ApiResponse(
+        201,
+        { benefits: feature.benefits },
+        "Benefit added successfully"
+      )
+    );
+});
+
+export const updateBenefit = asyncHandler(async (req, res) => {
+  const { featureId, benefitId } = req.params;
+  const { text } = req.body;
+
+  const feature = await Feature.findById(featureId);
+  if (!feature) throw new ApiError(404, "Feature not found");
+
+  const benefit = feature.benefits.id(benefitId);
+  if (!benefit) throw new ApiError(404, "Benefit not found");
+
+  benefit.text = text;
+  await feature.save();
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { benefits: feature.benefits },
+        "Benefit updated successfully"
+      )
+    );
+});
+
+export const deleteBenefit = asyncHandler(async (req, res) => {
+  const { featureId, benefitId } = req.params;
+
+  const feature = await Feature.findById(featureId);
+  if (!feature) throw new ApiError(404, "Feature not found");
+
+  const benefit = feature.benefits.id(benefitId);
+  if (!benefit) throw new ApiError(404, "Benefit not found");
+
+  benefit.deleteOne(); // Use Mongoose sub-document deleteOne
+  await feature.save();
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { benefits: feature.benefits },
+        "Benefit deleted successfully"
       )
     );
 });

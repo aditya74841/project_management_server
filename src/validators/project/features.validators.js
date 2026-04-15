@@ -153,6 +153,16 @@ const workflowValidator = () => {
   ];
 };
 
+const benefitValidator = () => {
+  return [
+    body("text")
+      .isString()
+      .trim()
+      .notEmpty()
+      .withMessage("Benefit text is required"),
+  ];
+};
+
 export {
   featureCreateValidator,
   featureUpdateValidator,
@@ -165,4 +175,5 @@ export {
   updateQuestionValidator,
   tagsValidator,
   workflowValidator,
+  benefitValidator,
 };

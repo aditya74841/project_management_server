@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import { referenceLinkSchema } from "./shared.schemas.js";
 
 const projectSchema = new Schema(
   {
@@ -45,6 +46,8 @@ const projectSchema = new Schema(
         ref: "User",
       },
     ],
+    links: [referenceLinkSchema],
+
     companyId: {
       type: Schema.Types.ObjectId,
       ref: "Company",

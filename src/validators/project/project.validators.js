@@ -175,6 +175,36 @@ const removeTechItemValidator = () => [
     .isString(),
 ];
 
+// ── Link Validators ───────────────────────────────────────────────────────────
+
+const addLinkValidator = () => [
+  body("name")
+    .trim()
+    .notEmpty()
+    .withMessage("Link name is required")
+    .isString(),
+  body("url")
+    .trim()
+    .notEmpty()
+    .withMessage("Link URL is required")
+    .isURL()
+    .withMessage("Please enter a valid URL"),
+];
+
+const updateLinkValidator = () => [
+  body("name")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Link name cannot be empty")
+    .isString(),
+  body("url")
+    .optional()
+    .trim()
+    .isURL()
+    .withMessage("Please enter a valid URL"),
+];
+
 export {
   projectCreateValidator,
   projectUpdateValidator,
@@ -186,4 +216,6 @@ export {
   addTechItemValidator,
   updateTechItemValidator,
   removeTechItemValidator,
+  addLinkValidator,
+  updateLinkValidator,
 };
