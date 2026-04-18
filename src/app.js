@@ -9,6 +9,8 @@ import { Server } from "socket.io";
 import requestIp from "request-ip";
 import swaggerUi from "swagger-ui-express";
 import YAML from "yamljs";
+import helmet from "helmet";
+import compression from "express-compression";
 
 import path from "path";
 import { fileURLToPath } from "url";
@@ -44,6 +46,9 @@ const httpServer = createServer(app);
 // app.set("io", io);
 
 // ------------------- GLOBAL MIDDLEWARES ------------------- //
+app.use(helmet());
+app.use(compression());
+
 app.use(
   cors({
     origin: [
@@ -64,7 +69,9 @@ app.use(requestIp.mw());
 const swaggerDocument = YAML.load(path.join(__dirname, "docs", "swagger.yaml"));
 
 // Mount route
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+if (process.env.NODE_ENV !== "production") {
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+}
 
 // Rate limiter
 const limiter = rateLimit({

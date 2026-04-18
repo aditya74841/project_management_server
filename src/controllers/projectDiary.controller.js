@@ -10,7 +10,6 @@ import mongoose from "mongoose";
 
 export const getProjectDiaryByProjectId = asyncHandler(async (req, res) => {
     const { projectId } = req.params;
-    //  createdBy: req.user._id
     let projectDiary = await ProjectDiary.findOne({ projectId, });
 
     if (!projectDiary) {
@@ -93,11 +92,7 @@ export const getAllProjectDiaries = asyncHandler(async (req, res) => {
 
 
 
-    // Scope all results to the logged-in user, using new indexed fields
-    // const query = { createdBy: req.user._id };
     const query = {}
-    // if (status) query.status = status;
-    // if (priority) query.priority = priority;
     if (projectId) query.projectId = projectId;
 
     const pageNumber = parseInt(page, 10);

@@ -119,7 +119,7 @@ export const getProject = asyncHandler(async (req, res) => {
     const total = await Project.countDocuments(filter);
 
     const response = {
-      projects: projects || [],
+      projects: (projects || []).filter(p => p && p._id),
       pagination: {
         currentPage: parseInt(page),
         totalPages: Math.ceil(total / parseInt(limit)),
@@ -170,9 +170,6 @@ export const updateProject = asyncHandler(async (req, res) => {
   if (!project) {
     throw new ApiError(404, "Project not found");
   }
-
-
-  // console.log("The project is", project)
 
   if (typeof name === "string" && name.trim()) {
     project.name = name.trim();
